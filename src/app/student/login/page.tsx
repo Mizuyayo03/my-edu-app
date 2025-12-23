@@ -50,7 +50,7 @@ export default function StudentLoginPage() {
   return (
     <div className="min-h-screen bg-indigo-50 flex items-center justify-center p-6 font-sans">
       <div className="bg-white p-10 rounded-[40px] shadow-xl w-full max-w-md border-t-8 border-indigo-600 text-center">
-        <h1 className="text-2xl font-black mb-2 text-indigo-900 italic uppercase tracking-tighter">Student Login</h1>
+        <h1 className="text-2xl font-black mb-2 text-indigo-900 italic uppercase tracking-tighter">生徒用ログイン画面</h1>
         <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-12">許可されたアカウント専用</p>
         
         <div className="space-y-6">
