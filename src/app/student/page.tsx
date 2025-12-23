@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from '../../firebase/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore'; // 🚀 setDocをここに移動
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { IoLogOutOutline, IoEnterOutline, IoCameraOutline, IoShareSocialOutline, IoTimeOutline } from 'react-icons/io5';
@@ -19,9 +19,18 @@ export default function StudentStartPage() {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (u) {
         setUser(u);
-        const userDoc = await getDoc(doc(db, "users", u.uid));
-        if (userDoc.exists()) {
-          setJoinedClass(userDoc.data().classCode || null);
+        
+        // 🚀 Googleのメールアドレスを使って、先生が登録したクラス情報を取得
+        if (u.email) {
+          try {
+            const userDoc = await getDoc(doc(db, "users", u.email));
+            if (userDoc.exists()) {
+              // 先生がエクセルで入れた classId を取得して反映
+              setJoinedClass(userDoc.data().classId || null);
+            }
+          } catch (err) {
+            console.error("データ取得失敗:", err);
+          }
         }
       } else {
         router.push('/student/login');
@@ -30,13 +39,15 @@ export default function StudentStartPage() {
     return () => unsub();
   }, [router]);
 
-  // クラス参加処理
+  // クラス参加処理（手動用）
   const handleJoinClass = async () => {
-    if (!classCode || !user) return;
+    if (!classCode || !user || !user.email) return;
     try {
-      await setDoc(doc(db, "users", user.uid), {
-        classCode: classCode.toUpperCase()
+      // 🚀 エラーの原因だった書き方を修正
+      await setDoc(doc(db, "users", user.email), {
+        classId: classCode.toUpperCase()
       }, { merge: true });
+      
       setJoinedClass(classCode.toUpperCase());
       setShowJoinModal(false);
       alert(`クラス ${classCode.toUpperCase()} に参加しました！`);
@@ -45,11 +56,11 @@ export default function StudentStartPage() {
     }
   };
 
-  if (!user) return <div className="p-20 text-center font-black text-slate-400">LOADING...</div>;
+  if (!user) return <div className="p-20 text-center font-black text-slate-400 uppercase tracking-widest">Loading...</div>;
 
   return (
     <div className="min-h-screen bg-indigo-50 text-slate-900 flex flex-col font-sans">
-      {/* ナビゲーション：右上に小さく参加ボタン */}
+      {/* ナビゲーション */}
       <nav className="p-6 px-10 flex justify-between items-center bg-white shadow-sm sticky top-0 z-30">
         <h1 className="text-xl font-black italic tracking-tighter text-indigo-600">STUDENT PANEL</h1>
         <div className="flex items-center gap-4">
@@ -63,33 +74,28 @@ export default function StudentStartPage() {
         </div>
       </nav>
 
-      {/* メイン：3大機能パネル */}
+      {/* メインパネル */}
       <main className="flex-1 flex flex-col items-center justify-center p-6 gap-6 max-w-md mx-auto w-full">
-        
-        {/* 1. 作品を撮る機能 (UPLOAD) */}
         <Link href="/student/upload" className="w-full group bg-indigo-600 p-10 rounded-[40px] shadow-xl hover:shadow-2xl hover:bg-indigo-700 transition-all flex flex-col items-center justify-center text-center text-white">
           <IoCameraOutline className="text-5xl mb-4 group-hover:scale-110 transition-transform" />
           <span className="text-2xl font-black italic tracking-tighter uppercase">Take Photo</span>
           <p className="text-[10px] font-bold opacity-60 uppercase tracking-[0.2em] mt-2">作品を撮る機能</p>
         </Link>
 
-        {/* 2. 共有機能 (SHARE) */}
         <Link href="/student/share" className="w-full group bg-white p-10 rounded-[40px] shadow-sm hover:shadow-xl border-2 border-white hover:border-indigo-100 transition-all flex flex-col items-center justify-center text-center">
           <IoShareSocialOutline className="text-5xl mb-4 text-indigo-500 group-hover:scale-110 transition-transform" />
           <span className="text-2xl font-black italic tracking-tighter text-slate-800 uppercase">Share Gallery</span>
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-2">共有機能</p>
         </Link>
 
-        {/* 3. 振り返り機能 (HISTORY) */}
         <Link href="/student/history" className="w-full group bg-white p-10 rounded-[40px] shadow-sm hover:shadow-xl border-2 border-white hover:border-indigo-100 transition-all flex flex-col items-center justify-center text-center">
           <IoTimeOutline className="text-5xl mb-4 text-indigo-400 group-hover:scale-110 transition-transform" />
           <span className="text-2xl font-black italic tracking-tighter text-slate-800 uppercase">My History</span>
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-2">振り返り機能</p>
         </Link>
-
       </main>
 
-      {/* クラス参加用ポップアップ */}
+      {/* クラス参加モーダル */}
       {showJoinModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 z-50">
           <div className="bg-white p-8 rounded-[40px] w-full max-w-sm shadow-2xl text-center border-t-8 border-indigo-600">
