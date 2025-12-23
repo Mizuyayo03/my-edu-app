@@ -12,7 +12,7 @@ export default function StudentShareSelectPage() {
         </Link>
         <div className="flex flex-col">
           <span className="text-[10px] font-black text-slate-300 tracking-[0.3em] uppercase mb-1">Collaboration</span>
-          <h1 className="text-3xl font-black italic tracking-tighter uppercase text-slate-800">Share</h1>
+          <h1 className="text-3xl font-black italic tracking-tighter uppercase text-slate-800">共有機能</h1>
           <p className="text-xs font-bold text-indigo-400 mt-1 uppercase tracking-tighter">みんなとつながる</p>
         </div>
       </header>
@@ -28,7 +28,7 @@ export default function StudentShareSelectPage() {
               <IoPeopleOutline className="w-8 h-8 text-indigo-500" />
             </div>
             <div>
-              <h2 className="text-xl font-black text-slate-800 uppercase italic tracking-tighter">Student Gallery</h2>
+              <h2 className="text-xl font-black text-slate-800 uppercase italic tracking-tighter">生徒ギャラリー</h2>
               <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase">クラスメイトの作品を見て、新しいアイデアを見つけよう。</p>
             </div>
           </div>
@@ -44,7 +44,7 @@ export default function StudentShareSelectPage() {
               <IoDocumentTextOutline className="w-8 h-8 text-emerald-500" />
             </div>
             <div>
-              <h2 className="text-xl font-black text-slate-800 uppercase italic tracking-tighter">Materials</h2>
+              <h2 className="text-xl font-black text-slate-800 uppercase italic tracking-tighter">共有</h2>
               <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase">先生から共有された授業の資料やヒントをチェック。</p>
             </div>
           </div>

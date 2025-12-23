@@ -48,7 +48,7 @@ export default function StudentHistory() {
       <header className="max-w-md mx-auto mb-10 flex justify-between items-center">
         <div className="flex flex-col">
           <span className="text-[10px] font-black text-indigo-500 tracking-[0.3em] uppercase mb-1">My Portfolio</span>
-          <h1 className="text-3xl font-black italic tracking-tighter uppercase">History</h1>
+          <h1 className="text-3xl font-black italic tracking-tighter uppercase">振り返り機能</h1>
         </div>
         <Link href="/student" className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-100 font-black text-slate-200 hover:text-indigo-600 transition-all text-xl">
           ←
