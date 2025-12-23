@@ -77,13 +77,13 @@ export default function TeacherStartPage() {
     <div className="min-h-screen bg-[#f1f5f9] text-slate-900 flex flex-col">
       {/* ナビゲーション */}
       <nav className="p-6 px-10 flex justify-between items-center bg-white shadow-sm sticky top-0 z-30">
-        <h1 className="text-xl font-black italic tracking-tighter text-slate-800">TEACHER PANEL</h1>
+        <h1 className="text-xl font-black italic tracking-tighter text-slate-800">先生用画面</h1>
         <div className="flex items-center gap-4">
           <button
             onClick={() => setShowCreateModal(true)}
             className="bg-slate-900 text-white px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-indigo-600 transition-colors shadow-md"
           >
-            ＋ Create Class
+            ＋ クラスルーム作成
           </button>
           <button onClick={() => signOut(auth)} className="text-slate-300 font-bold text-[10px] hover:text-rose-500 uppercase tracking-widest transition-colors">Logout</button>
         </div>
