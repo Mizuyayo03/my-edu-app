@@ -1,3 +1,5 @@
+// tsconfig.json (プロジェクトのルートディレクトリ直下)
+
 {
   "compilerOptions": {
     "target": "ES2017",
@@ -13,14 +15,15 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
+    "baseUrl": ".", // 👈 新規追加
+    "paths": {
+      "@/*": ["./src/*"] // 👈 "./*" から "./src/*" に修正
+    },
     "plugins": [
       {
         "name": "next"
       }
-    ],
-    "paths": {
-      "@/*": ["./*"]
-    }
+    ]
   },
   "include": [
     "next-env.d.ts",

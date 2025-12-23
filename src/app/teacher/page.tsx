@@ -27,10 +27,10 @@ export default function TeacherStartPage() {
         });
         return () => unsubSnapshot();
       } else {
-        // 🚨 ログインしていない場合、トップページ(/)にリダイレクト
+        // 🚨 ログインしていない場合、ログイン画面にリダイレクト
         setUser(null);
         setLoading(false);
-        router.push('/'); 
+        router.push('/teacher/login'); 
       }
     });
     return () => unsub();
@@ -53,13 +53,22 @@ export default function TeacherStartPage() {
     }
   };
 
-  // ログインチェック中、または未ログイン時は「Loading...」を表示
+  // ログインチェック中、または未ログイン時は表示を制限
   if (loading || !user) {
     return (
-      <div className="min-h-screen bg-[#f1f5f9] flex items-center justify-center">
-        <div className="p-20 text-center font-bold text-slate-400 font-black italic uppercase tracking-widest animate-pulse">
+      <div className="min-h-screen bg-[#f1f5f9] flex flex-col items-center justify-center p-6">
+        <div className="text-center font-bold text-slate-400 font-black italic uppercase tracking-widest animate-pulse">
           Loading...
         </div>
+        {/* 自動遷移しない場合の予備ボタン */}
+        {!loading && !user && (
+          <button 
+            onClick={() => router.push('/teacher/login')}
+            className="mt-4 text-[10px] font-black text-indigo-600 uppercase border-b border-indigo-600"
+          >
+            Go to Login
+          </button>
+        )}
       </div>
     );
   }
