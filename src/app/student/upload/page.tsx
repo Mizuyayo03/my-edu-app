@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
-import { db, auth } from '../../../firebase/firebase'; // 🚀 階層が深くなったので修正
+import { db, auth } from '../../../firebase/firebase'; 
 import { collection, addDoc, serverTimestamp, onSnapshot, query, where } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
@@ -43,7 +43,7 @@ export default function UploadPage() {
     return () => unsub();
   }, []);
 
-  // 課題箱の取得（期限内かつ未提出のみ）
+  // 課題箱の取得
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "tasks"), (snap) => {
       const now = new Date().getTime();
@@ -102,7 +102,7 @@ export default function UploadPage() {
         uid: user.uid, studentName, studentNumber, images, taskId: selectedTaskId, taskName, comment, brightness, createdAt: serverTimestamp(),
       });
       alert("提出完了しました！");
-      router.push('/student'); // 🚀 戻り先を /student に変更
+      router.push('/student');
     } catch (err) { alert("送信エラー"); } finally { setLoading(false); }
   };
 
@@ -110,8 +110,7 @@ export default function UploadPage() {
     return (
       <div className="min-h-screen bg-black text-white flex flex-col font-sans">
         <header className="p-4 flex justify-between items-center absolute top-0 w-full z-10 bg-black/40 backdrop-blur-md">
-          {/* 🚀 戻り先を /student に変更 */}
-          <Link href="/student" className="text-sm font-black px-6 py-2 bg-white/10 rounded-full border border-white/20 uppercase">Cancel</Link>
+          <Link href="/student" className="text-sm font-black px-6 py-2 bg-white/10 rounded-full border border-white/20 uppercase">キャンセル</Link>
           <div className="px-4 py-1 rounded-full text-xs font-black bg-indigo-600 shadow-lg shadow-indigo-500/50">枚数: {images.length}</div>
         </header>
         <div className="flex-1 relative flex items-center justify-center overflow-hidden">
@@ -124,12 +123,12 @@ export default function UploadPage() {
         <div className="h-32 bg-zinc-900 p-4 flex gap-3 overflow-x-auto items-center border-t border-white/10">
           {images.map((img, i) => (
             <div key={i} className="relative flex-shrink-0 animate-in zoom-in duration-300">
-              <img src={img} className="w-20 h-20 object-cover rounded-2xl border-2 border-white/10" />
+              <img src={img} className="w-20 h-20 object-cover rounded-2xl border-2 border-white/10" alt="thumbnail" />
               <button onClick={() => setImages(images.filter((_, idx) => idx !== i))} className="absolute -top-2 -right-2 bg-red-500 w-6 h-6 rounded-full text-[10px] flex items-center justify-center font-bold shadow-lg">✕</button>
             </div>
           ))}
           {images.length > 0 && (
-            <button onClick={() => setStep('preview')} className="ml-auto bg-indigo-600 px-10 py-5 rounded-[24px] font-black text-sm shadow-[0_0_30px_rgba(79,70,229,0.5)] active:scale-95 transition-all uppercase">Preview →</button>
+            <button onClick={() => setStep('preview')} className="ml-auto bg-indigo-600 px-10 py-5 rounded-[24px] font-black text-sm shadow-[0_0_30px_rgba(79,70,229,0.5)] active:scale-95 transition-all">プレビューへ →</button>
           )}
         </div>
       </div>
@@ -146,31 +145,31 @@ export default function UploadPage() {
       <div className="max-w-md mx-auto space-y-8 pb-24">
         <div className="flex gap-4 overflow-x-auto py-2 snap-x px-2">
           {images.map((img, i) => (
-            <img key={i} src={img} style={{ filter: `brightness(${brightness}%)` }} className="h-72 rounded-[40px] shadow-[0_20px_50px_rgba(0,0,0,0.1)] border-[6px] border-white flex-shrink-0 snap-center transition-all" />
+            <img key={i} src={img} style={{ filter: `brightness(${brightness}%)` }} className="h-72 rounded-[40px] shadow-[0_20px_50px_rgba(0,0,0,0.1)] border-[6px] border-white flex-shrink-0 snap-center transition-all" alt="preview" />
           ))}
         </div>
 
         <div className="grid grid-cols-4 gap-4 bg-white p-5 rounded-[32px] shadow-sm border border-slate-100">
           <div className="col-span-1 border-r border-slate-100 pr-2">
-            <label className="text-[10px] font-black text-slate-300 block mb-1 tracking-widest uppercase">No.</label>
+            <label className="text-[10px] font-black text-slate-300 block mb-1 tracking-widest uppercase">番号</label>
             <input type="number" placeholder="00" value={studentNumber} onChange={(e) => setStudentNumber(e.target.value)} className="w-full bg-transparent font-black text-2xl p-0 border-none focus:ring-0 placeholder:text-slate-100" />
           </div>
           <div className="col-span-3">
-            <label className="text-[10px] font-black text-slate-300 block mb-1 tracking-widest uppercase">Name</label>
+            <label className="text-[10px] font-black text-slate-300 block mb-1 tracking-widest uppercase">お名前</label>
             <input type="text" placeholder="名前を入力" value={studentName} onChange={(e) => setStudentName(e.target.value)} className="w-full bg-transparent font-black text-2xl p-0 border-none focus:ring-0 placeholder:text-slate-100" />
           </div>
         </div>
 
         <div className="bg-white p-7 rounded-[40px] shadow-sm border border-slate-100">
           <div className="flex justify-between items-center mb-4 px-1">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Brightness</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">明るさ調整</label>
             <span className="text-xs font-black text-indigo-600">{brightness} %</span>
           </div>
           <input type="range" min="50" max="150" value={brightness} onChange={(e) => setBrightness(Number(e.target.value))} className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
         </div>
 
         <div className="space-y-4">
-          <label className="text-[10px] font-black text-slate-400 uppercase ml-4 tracking-[0.2em] italic">Select Task Box</label>
+          <label className="text-[10px] font-black text-slate-400 uppercase ml-4 tracking-[0.2em] italic">提出先の課題箱を選んでね</label>
           <div className="grid gap-3">
             {tasks.length > 0 ? tasks.map((t) => (
               <button 
@@ -179,7 +178,6 @@ export default function UploadPage() {
                 className={`p-6 rounded-[32px] text-left font-black transition-all border-4 ${selectedTaskId === t.id ? 'border-indigo-600 bg-indigo-50 text-indigo-900 shadow-xl -translate-y-1' : 'border-white bg-white shadow-sm text-slate-400 opacity-60'}`}
               >
                 <div className="flex flex-col gap-1">
-                  {/* 🚀 修正：単元名がある場合にラベルとして表示 */}
                   {t.unitName && (
                     <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">
                       {t.unitName}
@@ -198,7 +196,7 @@ export default function UploadPage() {
         <textarea placeholder="作品についてのメッセージ（空欄でもOK）" value={comment} onChange={(e) => setComment(e.target.value)} className="w-full p-8 bg-white rounded-[40px] font-bold shadow-sm h-40 border-none focus:ring-4 focus:ring-indigo-50/50 text-slate-700 placeholder:text-slate-200" />
         
         <button onClick={handleSubmit} disabled={loading || tasks.length === 0} className="w-full py-7 bg-slate-900 text-white rounded-[48px] font-black italic text-3xl shadow-[0_20px_40px_rgba(0,0,0,0.2)] active:scale-95 disabled:bg-slate-200 disabled:shadow-none transition-all uppercase tracking-tighter">
-          {loading ? "Sending..." : "Post Work"}
+          {loading ? "送信中..." : "作品を提出する"}
         </button>
       </div>
     </div>

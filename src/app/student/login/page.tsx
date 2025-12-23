@@ -23,7 +23,6 @@ export default function StudentLoginPage() {
       }
 
       // 2. Firestoreの「users」コレクションに先生が登録したデータがあるか確認
-      // 先生側の画面で doc(db, "users", email) と保存するようにしたので、emailで検索します
       const userRef = doc(db, "users", user.email);
       const userSnap = await getDoc(userRef);
 
@@ -34,14 +33,16 @@ export default function StudentLoginPage() {
       } else {
         // ❌ 許可リストに存在しない場合
         await signOut(auth); // Authだけログイン状態になるのを防ぐ
-        alert("あなたのメールアドレスは先生の許可リストに登録されていません。");
+        alert("あなたのメールアドレスは先生の許可リストに登録されていません。\n正しいアカウントか確認してください。");
       }
     } catch (err: any) {
       console.error("Login Error:", err);
       if (err.code === 'auth/network-request-failed') {
         alert("ネットワークエラーが発生しました。Wi-Fi環境を確認してください。");
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        // ユーザーがポップアップを閉じた場合はアラートを出さない
       } else {
-        alert("ログインに失敗しました。");
+        alert("ログインに失敗しました。もう一度試してください。");
       }
     }
   };
@@ -50,7 +51,7 @@ export default function StudentLoginPage() {
     <div className="min-h-screen bg-indigo-50 flex items-center justify-center p-6 font-sans">
       <div className="bg-white p-10 rounded-[40px] shadow-xl w-full max-w-md border-t-8 border-indigo-600 text-center">
         <h1 className="text-2xl font-black mb-2 text-indigo-900 italic uppercase tracking-tighter">Student Login</h1>
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-12">Authorized Account Only</p>
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-12">許可されたアカウント専用</p>
         
         <div className="space-y-6">
           <button 
@@ -58,7 +59,7 @@ export default function StudentLoginPage() {
             className="w-full py-5 bg-white text-slate-700 rounded-[24px] font-black text-lg shadow-xl shadow-indigo-100 border-2 border-slate-50 active:scale-95 transition-all flex items-center justify-center gap-4"
           >
             <FcGoogle className="text-3xl" />
-            Sign in with Google
+            Googleでログイン
           </button>
         </div>
 
@@ -72,7 +73,7 @@ export default function StudentLoginPage() {
 
         <div className="mt-8 text-center pt-4 opacity-30 pointer-events-none">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-            Academic App Security
+            アプリのセキュリティ
           </p>
         </div>
       </div>
