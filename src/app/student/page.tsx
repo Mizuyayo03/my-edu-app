@@ -82,7 +82,7 @@ export default function StudentStartPage() {
         {/* 2. 共有機能 */}
         <Link href="/student/share" className="w-full group bg-white p-10 rounded-[40px] shadow-sm hover:shadow-xl border-2 border-white hover:border-indigo-100 transition-all flex flex-col items-center justify-center text-center">
           <IoShareSocialOutline className="text-5xl mb-4 text-indigo-500 group-hover:scale-110 transition-transform" />
-          <span className="text-2xl font-black italic tracking-tighter text-slate-800 uppercase">みんなのギャラリー</span>
+          <span className="text-2xl font-black italic tracking-tighter text-slate-800 uppercase">作品を共有</span>
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-2">クラスメイトの作品を見る</p>
         </Link>
 
