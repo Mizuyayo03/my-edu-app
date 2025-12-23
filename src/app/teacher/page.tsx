@@ -94,28 +94,28 @@ export default function TeacherStartPage() {
         {/* 1. 提出確認機能 (CHECK) */}
         <Link href="/teacher/check" className="w-full group bg-slate-900 p-10 rounded-[40px] shadow-xl hover:shadow-2xl hover:bg-indigo-700 transition-all flex flex-col items-center justify-center text-center text-white">
           <span className="text-5xl mb-4 group-hover:scale-110 transition-transform">📁</span>
-          <span className="text-2xl font-black italic tracking-tighter">CHECK BOX</span>
-          <p className="text-[10px] font-bold opacity-60 uppercase tracking-[0.2em] mt-2">提出確認機能</p>
+          <span className="text-2xl font-black italic tracking-tighter">提出確認機能</span>
+          <p className="text-[10px] font-bold opacity-60 uppercase tracking-[0.2em] mt-2">CHECK BOX</p>
         </Link>
 
         {/* 2. 共有機能 (GALLERY) */}
         <Link href="/teacher/gallery-select" className="w-full group bg-white p-10 rounded-[40px] shadow-sm hover:shadow-xl border-2 border-slate-100 transition-all flex flex-col items-center justify-center text-center">
           <span className="text-5xl mb-4 group-hover:scale-110 transition-transform">🎨</span>
-          <span className="text-2xl font-black italic tracking-tighter text-slate-800">GALLERY</span>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-2">共有機能</p>
+          <span className="text-2xl font-black italic tracking-tighter text-slate-800">共有機能</span>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-2">GALLERY</p>
         </Link>
 
         {/* 3. 総覧機能 (SUMMARY) */}
         <Link href="/teacher/summary-select" className="w-full group bg-white p-10 rounded-[40px] shadow-sm hover:shadow-xl border-2 border-slate-100 transition-all flex flex-col items-center justify-center text-center">
           <span className="text-5xl mb-4 group-hover:scale-110 transition-transform">📊</span>
-          <span className="text-2xl font-black italic tracking-tighter text-slate-800">SUMMARY</span>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-2">総覧機能</p>
+          <span className="text-2xl font-black italic tracking-tighter text-slate-800">総覧機能</span>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-2">SUMMARY</p>
         </Link>
 
         {/* クラスコード表示エリア */}
         {classes.length > 0 && (
           <div className="w-full mt-10 p-6 bg-white rounded-[32px] shadow-sm border border-slate-100">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 text-center">Created Classes & Codes</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 text-center">作成したクラスとコード</p>
             <div className="space-y-4">
               {classes.map((cls) => (
                 <div key={cls.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-transparent hover:border-indigo-100 transition-all">
