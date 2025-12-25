@@ -52,8 +52,8 @@ function PortfolioContent() {
   }, [isPlaying, speed, works.length]);
 
   if (works.length === 0) return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center font-black text-indigo-300 animate-pulse tracking-[0.3em]">
-      GENERATING...
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center font-black text-slate-300 animate-pulse tracking-widest uppercase">
+      Loading Portfolio...
     </div>
   );
 
@@ -61,89 +61,89 @@ function PortfolioContent() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 p-6 md:p-10 font-sans">
-      {/* 1. 上部：単元名と課題名（図面レイアウト） */}
-      <div className="max-w-6xl mx-auto flex gap-4 mb-8">
-        <div className="flex-1 bg-white p-5 border-[3px] border-slate-900 rounded-[24px] shadow-[4px_4px_0px_0px_rgba(15,23,42,1)]">
-          <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">Unit</p>
-          <p className="font-black text-lg md:text-xl truncate">{unitName}</p>
+      {/* 上部：単元名と課題名 */}
+      <div className="max-w-5xl mx-auto flex gap-4 mb-8">
+        <div className="flex-1 bg-white p-6 rounded-[32px] shadow-sm border border-white">
+          <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1 italic">Unit</p>
+          <p className="font-black text-lg truncate">{unitName}</p>
         </div>
-        <div className="flex-[2] bg-white p-5 border-[3px] border-slate-900 rounded-[24px] shadow-[4px_4px_0px_0px_rgba(15,23,42,1)]">
-          <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">Task</p>
-          <p className="font-black text-lg md:text-xl truncate">{currentWork.taskName || "課題"}</p>
+        <div className="flex-[2] bg-white p-6 rounded-[32px] shadow-sm border border-white">
+          <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1 italic">Current Task</p>
+          <p className="font-black text-lg truncate">{currentWork.taskName || "課題"}</p>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* 左側：作品メイン */}
+      <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* 左側：メイン作品表示 */}
         <div className="lg:col-span-7 space-y-6">
-          <div className="w-full p-4 bg-indigo-600 border-[3px] border-slate-900 rounded-[20px] shadow-[4px_4px_0px_0px_rgba(15,23,42,1)]">
-            <h2 className="text-white font-black text-center text-xl italic uppercase tracking-tighter">
+          <div className="bg-white p-5 rounded-[32px] shadow-sm border border-white text-center">
+             <h2 className="text-indigo-600 font-black text-xl italic uppercase tracking-tighter">
               {customTitle}
             </h2>
           </div>
-          <div className="w-full aspect-video bg-white border-[3px] border-slate-900 rounded-[40px] flex items-center justify-center overflow-hidden shadow-[12px_12px_0px_0px_rgba(15,23,42,1)]">
+          <div className="w-full aspect-video bg-white rounded-[48px] shadow-xl shadow-indigo-100/50 border-8 border-white flex items-center justify-center overflow-hidden">
             <img 
               src={currentWork.images?.[0]} 
-              className="w-full h-full object-contain p-4" 
+              className="w-full h-full object-contain" 
               alt="work"
             />
           </div>
         </div>
 
         {/* 右側：コントロール & コメント */}
-        <div className="lg:col-span-5 flex flex-col gap-6 h-full">
-          {/* 再生コントロール */}
-          <div className="bg-white p-6 border-[3px] border-slate-900 rounded-[32px] shadow-[6px_6px_0px_0px_rgba(15,23,42,1)]">
-            <div className="flex items-center justify-center gap-8 mb-6">
-              <button onClick={() => setCurrentIndex((prev) => (prev - 1 + works.length) % works.length)} className="text-3xl hover:scale-110 active:scale-90 transition-all"><IoPlayBack /></button>
-              <button onClick={() => setIsPlaying(!isPlaying)} className="w-16 h-16 bg-slate-900 text-white rounded-full flex items-center justify-center text-3xl shadow-lg active:scale-95 transition-all">
+        <div className="lg:col-span-5 flex flex-col gap-6">
+          {/* 再生コントロールボックス */}
+          <div className="bg-white p-8 rounded-[40px] shadow-xl shadow-indigo-50 border border-white">
+            <div className="flex items-center justify-center gap-8 mb-8">
+              <button onClick={() => setCurrentIndex((prev) => (prev - 1 + works.length) % works.length)} className="text-3xl text-slate-300 hover:text-indigo-500 transition-colors"><IoPlayBack /></button>
+              <button onClick={() => setIsPlaying(!isPlaying)} className="w-16 h-16 bg-indigo-600 text-white rounded-full flex items-center justify-center text-3xl shadow-lg shadow-indigo-200 active:scale-90 transition-all">
                 {isPlaying ? <IoPause /> : <IoPlay className="ml-1" />}
               </button>
-              <button onClick={() => setCurrentIndex((prev) => (prev + 1) % works.length)} className="text-3xl hover:scale-110 active:scale-90 transition-all"><IoPlayForward /></button>
+              <button onClick={() => setCurrentIndex((prev) => (prev + 1) % works.length)} className="text-3xl text-slate-300 hover:text-indigo-500 transition-colors"><IoPlayForward /></button>
             </div>
             
-            <div className="flex items-center justify-between border-t-[3px] border-slate-100 pt-5">
+            <div className="flex items-center justify-between border-t border-slate-50 pt-6">
               <div className="flex gap-2">
                 {[1, 2, 3].map((s) => (
                   <button 
                     key={s} 
                     onClick={() => setSpeed(s)}
-                    className={`w-10 h-10 rounded-full font-black text-xs transition-all border-2 border-slate-900 ${speed === s ? 'bg-indigo-500 text-white' : 'bg-slate-50 text-slate-400'}`}
+                    className={`px-4 py-2 rounded-xl font-black text-xs transition-all ${speed === s ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-50 text-slate-300'}`}
                   >
                     x{s}
                   </button>
                 ))}
               </div>
-              <span className="font-black text-2xl italic text-slate-900 tracking-tighter">
-                {currentIndex + 1} <span className="text-slate-300 text-lg">/</span> {works.length}
+              <span className="font-black text-2xl italic text-slate-200 tracking-tighter">
+                {currentIndex + 1} / {works.length}
               </span>
             </div>
           </div>
 
-          {/* コメントエリア（図面通りの上下分割ボックス） */}
-          <div className="flex-1 bg-white border-[3px] border-slate-900 rounded-[48px] overflow-hidden flex flex-col shadow-[8px_8px_0px_0px_rgba(15,23,42,1)] min-h-[300px]">
-            <div className="flex-1 p-7 border-b-[3px] border-slate-900">
-              <span className="inline-block px-3 py-1 bg-indigo-100 text-indigo-600 rounded-full text-[10px] font-black uppercase mb-3">My Comment</span>
-              <p className="font-bold text-slate-700 leading-relaxed text-sm overflow-y-auto max-h-[100px]">
-                {currentWork.comment || "振り返りコメントはまだありません"}
+          {/* コメントエリア（履歴画面のカード風デザイン） */}
+          <div className="bg-white rounded-[48px] shadow-sm border border-white overflow-hidden flex flex-col min-h-[320px]">
+            <div className="flex-1 p-8 border-b border-slate-50">
+              <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-3 block">My Comment</span>
+              <p className="font-bold text-slate-600 leading-relaxed">
+                {currentWork.comment || "コメントなし"}
               </p>
             </div>
-            <div className="flex-1 p-7 bg-indigo-50/50">
-              <span className="inline-block px-3 py-1 bg-white text-indigo-500 border border-indigo-200 rounded-full text-[10px] font-black uppercase mb-3">Teacher's Feedback</span>
-              <p className="font-bold text-indigo-900 italic leading-relaxed text-sm overflow-y-auto max-h-[100px]">
-                {currentWork.teacherFeedback || "先生からのコメントを待っています..."}
+            <div className="flex-1 p-8 bg-indigo-50/30">
+              <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-3 block italic">Teacher Feedback</span>
+              <p className="font-bold text-indigo-900/80 italic leading-relaxed">
+                {currentWork.teacherFeedback || "フィードバック待ち..."}
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 閉じるボタン */}
+      {/* 閉じるボタン（履歴画面の戻るボタンと同じスタイル） */}
       <button 
         onClick={() => router.back()}
-        className="fixed bottom-8 right-8 w-16 h-16 bg-white text-slate-900 border-[3px] border-slate-900 rounded-full flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] hover:bg-red-50 hover:text-red-500 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+        className="fixed bottom-10 right-10 w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-xl border border-slate-100 font-black text-slate-300 hover:text-red-500 transition-all text-3xl"
       >
-        <IoClose size={36} />
+        <IoClose />
       </button>
     </div>
   );
@@ -151,7 +151,7 @@ function PortfolioContent() {
 
 export default function PortfolioPlayer() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center font-black">LOADING...</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>
       <PortfolioContent />
     </Suspense>
   );
