@@ -1,11 +1,11 @@
 'use client';
-import React, { useState, useEffect, Suspense } from 'react'; // Suspenseを追加
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { db, auth } from '@/firebase/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore'; // orderByを外す
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { IoPlay, IoPause, IoPlayBack, IoPlayForward, IoClose } from 'react-icons/io5';
 
-function PortfolioContent() { // Suspense用に中身を分離
+function PortfolioContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const unitName = searchParams.get('unit');
@@ -19,7 +19,6 @@ function PortfolioContent() { // Suspense用に中身を分離
   useEffect(() => {
     const fetchWorks = async () => {
       if (auth.currentUser && unitName) {
-        // 1. まず全ての課題(tasks)を取得して、この単元(unitName)に属するtaskIdを特定する
         const tasksSnap = await getDocs(collection(db, "tasks"));
         const targetTaskIds = tasksSnap.docs
           .filter(d => (d.data().unitName || d.data().title) === unitName)
@@ -27,26 +26,21 @@ function PortfolioContent() { // Suspense用に中身を分離
 
         if (targetTaskIds.length === 0) return;
 
-        // 2. 特定したtaskIdのいずれかに一致する自分の作品を取得
         const q = query(
           collection(db, "works"), 
           where("uid", "==", auth.currentUser.uid),
-          where("taskId", "in", targetTaskIds) // 単元に含まれる全課題IDで検索
+          where("taskId", "in", targetTaskIds)
         );
         
         const snap = await getDocs(q);
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        
-        // メモリ上でソート（インデックスエラー回避）
         data.sort((a: any, b: any) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
-        
         setWorks(data);
       }
     };
     fetchWorks();
   }, [unitName]);
 
-  // 自動再生タイマー (変更なし)
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isPlaying && works.length > 0) {
@@ -58,84 +52,106 @@ function PortfolioContent() { // Suspense用に中身を分離
   }, [isPlaying, speed, works.length]);
 
   if (works.length === 0) return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center font-black text-slate-300 italic uppercase">
-      作品を読み込み中...
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center font-black text-indigo-300 animate-pulse tracking-[0.3em]">
+      GENERATING...
     </div>
   );
 
   const currentWork = works[currentIndex];
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 p-6 font-sans">
-      {/* ヘッダーエリア */}
-      <div className="flex gap-4 mb-6">
-        <div className="flex-1 p-6 border-4 border-slate-900 rounded-2xl font-black text-center text-xl bg-slate-50">
-          <p className="text-[10px] text-slate-400 uppercase mb-1">Unit</p>
-          {unitName}
+    <div className="min-h-screen bg-slate-50 text-slate-900 p-6 md:p-10 font-sans">
+      {/* 1. 上部：単元名と課題名（図面レイアウト） */}
+      <div className="max-w-6xl mx-auto flex gap-4 mb-8">
+        <div className="flex-1 bg-white p-5 border-[3px] border-slate-900 rounded-[24px] shadow-[4px_4px_0px_0px_rgba(15,23,42,1)]">
+          <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">Unit</p>
+          <p className="font-black text-lg md:text-xl truncate">{unitName}</p>
         </div>
-        <div className="flex-[2] p-6 border-4 border-slate-900 rounded-2xl font-black text-center text-xl bg-slate-50">
-          <p className="text-[10px] text-slate-400 uppercase mb-1">Task</p>
-          {currentWork.taskName || "課題名"}
+        <div className="flex-[2] bg-white p-5 border-[3px] border-slate-900 rounded-[24px] shadow-[4px_4px_0px_0px_rgba(15,23,42,1)]">
+          <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">Task</p>
+          <p className="font-black text-lg md:text-xl truncate">{currentWork.taskName || "課題"}</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* 左側：作品 */}
-        <div className="lg:col-span-7">
-          <div className="w-full p-4 border-4 border-slate-900 rounded-2xl font-black text-center mb-4 text-2xl bg-indigo-50 italic">
-            {customTitle}
+      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* 左側：作品メイン */}
+        <div className="lg:col-span-7 space-y-6">
+          <div className="w-full p-4 bg-indigo-600 border-[3px] border-slate-900 rounded-[20px] shadow-[4px_4px_0px_0px_rgba(15,23,42,1)]">
+            <h2 className="text-white font-black text-center text-xl italic uppercase tracking-tighter">
+              {customTitle}
+            </h2>
           </div>
-          <div className="w-full aspect-video border-4 border-slate-900 rounded-[40px] flex items-center justify-center overflow-hidden bg-slate-100 shadow-[12px_12px_0px_0px_rgba(15,23,42,1)]">
-            <img src={currentWork.images?.[0]} className="w-full h-full object-contain p-2" />
+          <div className="w-full aspect-video bg-white border-[3px] border-slate-900 rounded-[40px] flex items-center justify-center overflow-hidden shadow-[12px_12px_0px_0px_rgba(15,23,42,1)]">
+            <img 
+              src={currentWork.images?.[0]} 
+              className="w-full h-full object-contain p-4" 
+              alt="work"
+            />
           </div>
         </div>
 
-        {/* 右側：コントロールとコメント */}
-        <div className="lg:col-span-5 flex flex-col gap-6">
-          {/* コントロール */}
-          <div className="bg-white p-6 border-4 border-slate-900 rounded-[32px] shadow-sm">
-            <div className="flex items-center justify-center gap-8 mb-4">
-              <button onClick={() => setCurrentIndex((prev) => (prev - 1 + works.length) % works.length)} className="text-3xl"><IoPlayBack /></button>
-              <button onClick={() => setIsPlaying(!isPlaying)} className="w-16 h-16 bg-slate-900 text-white rounded-full flex items-center justify-center text-3xl">
+        {/* 右側：コントロール & コメント */}
+        <div className="lg:col-span-5 flex flex-col gap-6 h-full">
+          {/* 再生コントロール */}
+          <div className="bg-white p-6 border-[3px] border-slate-900 rounded-[32px] shadow-[6px_6px_0px_0px_rgba(15,23,42,1)]">
+            <div className="flex items-center justify-center gap-8 mb-6">
+              <button onClick={() => setCurrentIndex((prev) => (prev - 1 + works.length) % works.length)} className="text-3xl hover:scale-110 active:scale-90 transition-all"><IoPlayBack /></button>
+              <button onClick={() => setIsPlaying(!isPlaying)} className="w-16 h-16 bg-slate-900 text-white rounded-full flex items-center justify-center text-3xl shadow-lg active:scale-95 transition-all">
                 {isPlaying ? <IoPause /> : <IoPlay className="ml-1" />}
               </button>
-              <button onClick={() => setCurrentIndex((prev) => (prev + 1) % works.length)} className="text-3xl"><IoPlayForward /></button>
+              <button onClick={() => setCurrentIndex((prev) => (prev + 1) % works.length)} className="text-3xl hover:scale-110 active:scale-90 transition-all"><IoPlayForward /></button>
             </div>
-            <div className="flex justify-between items-center border-t-2 pt-4">
+            
+            <div className="flex items-center justify-between border-t-[3px] border-slate-100 pt-5">
               <div className="flex gap-2">
-                {[1, 2, 3].map(s => (
-                  <button key={s} onClick={() => setSpeed(s)} className={`px-4 py-1 rounded-lg font-black ${speed === s ? 'bg-indigo-600 text-white' : 'bg-slate-100'}`}>x{s}</button>
+                {[1, 2, 3].map((s) => (
+                  <button 
+                    key={s} 
+                    onClick={() => setSpeed(s)}
+                    className={`w-10 h-10 rounded-full font-black text-xs transition-all border-2 border-slate-900 ${speed === s ? 'bg-indigo-500 text-white' : 'bg-slate-50 text-slate-400'}`}
+                  >
+                    x{s}
+                  </button>
                 ))}
               </div>
-              <span className="font-black text-2xl text-slate-400 italic">({currentIndex + 1}/{works.length})</span>
+              <span className="font-black text-2xl italic text-slate-900 tracking-tighter">
+                {currentIndex + 1} <span className="text-slate-300 text-lg">/</span> {works.length}
+              </span>
             </div>
           </div>
 
-          {/* コメントエリア */}
-          <div className="flex-1 border-4 border-slate-900 rounded-[60px] overflow-hidden flex flex-col bg-slate-50 shadow-[8px_8px_0px_0px_rgba(15,23,42,1)]">
-            <div className="flex-1 p-8 border-b-4 border-slate-900">
-              <p className="font-black text-indigo-500 text-[10px] uppercase mb-2">感想コメント</p>
-              <p className="font-bold text-slate-700">{currentWork.comment || "コメントはありません"}</p>
+          {/* コメントエリア（図面通りの上下分割ボックス） */}
+          <div className="flex-1 bg-white border-[3px] border-slate-900 rounded-[48px] overflow-hidden flex flex-col shadow-[8px_8px_0px_0px_rgba(15,23,42,1)] min-h-[300px]">
+            <div className="flex-1 p-7 border-b-[3px] border-slate-900">
+              <span className="inline-block px-3 py-1 bg-indigo-100 text-indigo-600 rounded-full text-[10px] font-black uppercase mb-3">My Comment</span>
+              <p className="font-bold text-slate-700 leading-relaxed text-sm overflow-y-auto max-h-[100px]">
+                {currentWork.comment || "振り返りコメントはまだありません"}
+              </p>
             </div>
-            <div className="flex-1 p-8 bg-indigo-50/30">
-              <p className="font-black text-indigo-500 text-[10px] uppercase mb-2">先生からのコメント</p>
-              <p className="font-bold text-indigo-900 italic">{currentWork.teacherFeedback || "まだありません"}</p>
+            <div className="flex-1 p-7 bg-indigo-50/50">
+              <span className="inline-block px-3 py-1 bg-white text-indigo-500 border border-indigo-200 rounded-full text-[10px] font-black uppercase mb-3">Teacher's Feedback</span>
+              <p className="font-bold text-indigo-900 italic leading-relaxed text-sm overflow-y-auto max-h-[100px]">
+                {currentWork.teacherFeedback || "先生からのコメントを待っています..."}
+              </p>
             </div>
           </div>
         </div>
       </div>
 
-      <button onClick={() => router.back()} className="fixed bottom-10 right-10 w-16 h-16 bg-red-500 text-white rounded-full flex items-center justify-center shadow-xl border-4 border-slate-900 transition-all active:scale-95">
+      {/* 閉じるボタン */}
+      <button 
+        onClick={() => router.back()}
+        className="fixed bottom-8 right-8 w-16 h-16 bg-white text-slate-900 border-[3px] border-slate-900 rounded-full flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] hover:bg-red-50 hover:text-red-500 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+      >
         <IoClose size={36} />
       </button>
     </div>
   );
 }
 
-// useSearchParamsを使うためにSuspenseでラップ
 export default function PortfolioPlayer() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center font-black">LOADING...</div>}>
       <PortfolioContent />
     </Suspense>
   );
