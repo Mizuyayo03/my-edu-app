@@ -3,16 +3,17 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from '../../firebase/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { IoLogOutOutline, IoEnterOutline, IoCameraOutline, IoShareSocialOutline, IoTimeOutline } from 'react-icons/io5';
+import { IoLogOutOutline, IoEnterOutline, IoCameraOutline, IoShareSocialOutline, IoTimeOutline, IoChevronDownOutline } from 'react-icons/io5';
 
 export default function StudentStartPage() {
   const [user, setUser] = useState<any>(null);
-  const [classCode, setClassCode] = useState('');
-  const [joinedClass, setJoinedClass] = useState<string | null>(null);
-  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [studentName, setStudentName] = useState<string>('');
+  const [myClasses, setMyClasses] = useState<any[]>([]); 
+  const [currentClass, setCurrentClass] = useState<any>(null); 
+  const [showClassList, setShowClassList] = useState(false); 
   const router = useRouter();
 
   useEffect(() => {
@@ -21,9 +22,35 @@ export default function StudentStartPage() {
         setUser(u);
         if (u.email) {
           try {
-            const userDoc = await getDoc(doc(db, "users", u.email));
-            if (userDoc.exists()) {
-              setJoinedClass(userDoc.data().classId || null);
+            // 1. クラス所属情報をすべて取得
+            // 💡 先生側で doc(db, "users", email) ではなく addDoc(collection(db, "users"), ...) 
+            // で登録するようにすると、ここで複数のクラスがヒットするようになります。
+            const q = query(collection(db, "users"), where("email", "==", u.email));
+            const querySnapshot = await getDocs(q);
+            
+            const classesFound: any[] = [];
+            querySnapshot.forEach((docSnap) => {
+              const data = docSnap.data();
+              if (data.classId) {
+                // 🚀 クラス名を「学校名 学年・組」で組み立てる
+                const displayName = (data.schoolName && data.gradeClass)
+                  ? `${data.schoolName} ${data.gradeClass}`
+                  : data.className || data.classId;
+
+                classesFound.push({
+                  id: docSnap.id,
+                  classId: data.classId,
+                  displayName: displayName,
+                  studentName: data.studentName
+                });
+              }
+            });
+
+            setMyClasses(classesFound);
+            
+            if (classesFound.length > 0) {
+              setCurrentClass(classesFound[0]);
+              setStudentName(classesFound[0].studentName || '');
             }
           } catch (err) {
             console.error("データ取得失敗:", err);
@@ -36,88 +63,95 @@ export default function StudentStartPage() {
     return () => unsub();
   }, [router]);
 
-  const handleJoinClass = async () => {
-    if (!classCode || !user || !user.email) return;
-    try {
-      await setDoc(doc(db, "users", user.email), {
-        classId: classCode.toUpperCase()
-      }, { merge: true });
-      
-      setJoinedClass(classCode.toUpperCase());
-      setShowJoinModal(false);
-      alert(`クラス ${classCode.toUpperCase()} に参加しました！`);
-    } catch (err) {
-      alert("参加に失敗しました。");
-    }
+  // クラスを切り替えた時に名前も更新する
+  const handleSelectClass = (cls: any) => {
+    setCurrentClass(cls);
+    setStudentName(cls.studentName || '');
+    setShowClassList(false);
   };
 
   if (!user) return <div className="p-20 text-center font-black text-slate-400 uppercase tracking-widest">読み込み中...</div>;
 
   return (
     <div className="min-h-screen bg-indigo-50 text-slate-900 flex flex-col font-sans">
-      {/* ナビゲーション */}
-<nav className="p-6 px-10 flex justify-between items-center bg-white shadow-sm sticky top-0 z-30">
-  <h1 className="text-xl font-black italic tracking-tighter text-indigo-600">作品記録ノート</h1>
-  <div className="flex items-center gap-4">
-    <button 
-      onClick={() => setShowJoinModal(true)}
-      className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-slate-900 transition-colors shadow-md flex items-center gap-1"
-    >
-      <IoEnterOutline className="w-3 h-3" /> {joinedClass ? 'クラス参加' : 'クラスに参加'}
-    </button>
-    <button onClick={() => signOut(auth)} className="text-slate-300 font-bold text-[10px] hover:text-rose-500 uppercase tracking-widest">ログアウト</button>
-  </div>
-</nav>
-
-      {/* メインパネル */}
-      <main className="flex-1 flex flex-col items-center justify-center p-6 gap-6 max-w-md mx-auto w-full">
+      <nav className="p-6 px-10 flex justify-between items-center bg-white shadow-sm sticky top-0 z-30">
+        <h1 className="text-xl font-black italic tracking-tighter text-indigo-600">
+          {studentName ? `${studentName} さん` : 'マイページ'}
+        </h1>
         
-        {/* 1. 作品を撮る機能 */}
-        <Link href="/student/upload" className="w-full group bg-indigo-600 p-10 rounded-[40px] shadow-xl hover:shadow-2xl hover:bg-indigo-700 transition-all flex flex-col items-center justify-center text-center text-white">
+        <div className="flex items-center gap-4 relative">
+          <button 
+            onClick={() => setShowClassList(!showClassList)}
+            className="bg-slate-100 text-slate-700 px-4 py-2 rounded-xl font-black text-[11px] uppercase tracking-wider hover:bg-indigo-100 transition-all flex items-center gap-2 border border-slate-200"
+          >
+            <span className="text-indigo-600 font-bold">所属:</span> 
+            {currentClass ? currentClass.displayName : '未所属'}
+            <IoChevronDownOutline className={`transition-transform ${showClassList ? 'rotate-180' : ''}`} />
+          </button>
+          
+          <button onClick={() => signOut(auth)} className="text-slate-300 font-bold text-[10px] hover:text-rose-500 uppercase tracking-widest">ログアウト</button>
+
+          {/* ドロップダウンメニュー */}
+          {showClassList && (
+            <div className="absolute top-12 right-0 w-64 bg-white rounded-3xl shadow-2xl border border-indigo-50 p-2 z-50 animate-in fade-in zoom-in duration-150">
+              <p className="text-[9px] font-black text-slate-400 p-3 uppercase tracking-widest">参加中のクラス</p>
+              {myClasses.length === 0 && <p className="p-4 text-xs font-bold text-slate-300">クラスがありません</p>}
+              {myClasses.map((cls) => (
+                <button
+                  key={cls.id}
+                  onClick={() => handleSelectClass(cls)}
+                  className={`w-full text-left p-4 rounded-2xl font-black text-sm transition-all mb-1 ${
+                    currentClass?.id === cls.id 
+                      ? 'bg-indigo-600 text-white' 
+                      : 'hover:bg-indigo-50 text-slate-700'
+                  }`}
+                >
+                  {cls.displayName}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </nav>
+
+      <main className="flex-1 flex flex-col items-center justify-center p-6 gap-6 max-w-md mx-auto w-full">
+        <div className="text-center mb-2">
+          <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em]">選択中のクラス</p>
+          <h2 className="text-2xl font-black text-slate-800 italic">{currentClass ? currentClass.displayName : 'クラスを選択してください'}</h2>
+        </div>
+
+        {/* 作品を撮る */}
+        <Link 
+          href={currentClass ? `/student/upload?classId=${currentClass.classId}&studentName=${studentName}` : '#'} 
+          className={`w-full group p-10 rounded-[40px] shadow-xl transition-all flex flex-col items-center justify-center text-center ${
+            currentClass ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-slate-200 text-slate-400 pointer-events-none'
+          }`}
+        >
           <IoCameraOutline className="text-5xl mb-4 group-hover:scale-110 transition-transform" />
           <span className="text-2xl font-black italic tracking-tighter uppercase">作品を撮る</span>
           <p className="text-[10px] font-bold opacity-60 uppercase tracking-[0.2em] mt-2">カメラで写真を送る</p>
         </Link>
 
-        {/* 2. 共有機能 */}
-        <Link href="/student/share" className="w-full group bg-white p-10 rounded-[40px] shadow-sm hover:shadow-xl border-2 border-white hover:border-indigo-100 transition-all flex flex-col items-center justify-center text-center">
+        {/* みんなのギャラリー */}
+        <Link 
+          href={currentClass ? `/student/share?classId=${currentClass.classId}` : '#'} 
+          className="w-full group bg-white p-10 rounded-[40px] shadow-sm hover:shadow-xl border-2 border-white hover:border-indigo-100 transition-all flex flex-col items-center justify-center text-center"
+        >
           <IoShareSocialOutline className="text-5xl mb-4 text-indigo-500 group-hover:scale-110 transition-transform" />
-          <span className="text-2xl font-black italic tracking-tighter text-slate-800 uppercase">作品を共有</span>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-2">クラスメイトの作品を見る</p>
+          <span className="text-2xl font-black italic tracking-tighter text-slate-800 uppercase">みんなのギャラリー</span>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-2">ともだちの作品を見る</p>
         </Link>
 
-        {/* 3. 振り返り機能 */}
+        {/* 自分の記録 */}
         <Link href="/student/history" className="w-full group bg-white p-10 rounded-[40px] shadow-sm hover:shadow-xl border-2 border-white hover:border-indigo-100 transition-all flex flex-col items-center justify-center text-center">
           <IoTimeOutline className="text-5xl mb-4 text-indigo-400 group-hover:scale-110 transition-transform" />
           <span className="text-2xl font-black italic tracking-tighter text-slate-800 uppercase">自分の記録</span>
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-2">これまでの活動を見る</p>
         </Link>
-
       </main>
 
-      {/* クラス参加モーダル */}
-      {showJoinModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 z-50">
-          <div className="bg-white p-8 rounded-[40px] w-full max-w-sm shadow-2xl text-center border-t-8 border-indigo-600">
-            <h2 className="text-xl font-black text-slate-900 mb-2 uppercase italic tracking-tighter">クラスコード</h2>
-            <p className="text-[10px] font-bold text-slate-400 mb-6">先生に教えてもらったコードを入れてください</p>
-            <input 
-              type="text" 
-              placeholder="ABC123"
-              className="w-full p-4 bg-indigo-50 rounded-2xl border-none mb-6 font-black text-center text-2xl tracking-[0.3em] text-indigo-600 outline-none"
-              value={classCode}
-              onChange={(e) => setClassCode(e.target.value)}
-            />
-            <div className="flex gap-4">
-              <button onClick={() => setShowJoinModal(false)} className="flex-1 py-4 font-black text-slate-400 uppercase tracking-widest text-[10px]">キャンセル</button>
-              <button onClick={handleJoinClass} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black italic shadow-lg">参加する</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <footer className="p-10 text-center">
-        <p className="text-[9px] font-black text-indigo-200 uppercase tracking-[0.5em]">学習管理システム</p>
+        <p className="text-[9px] font-black text-indigo-200 uppercase tracking-[0.5em]">COLORVERSE SYSTEM</p>
       </footer>
     </div>
   );
