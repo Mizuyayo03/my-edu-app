@@ -63,7 +63,7 @@ export default function StudentStartPage() {
       onClick={() => setShowJoinModal(true)}
       className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-slate-900 transition-colors shadow-md flex items-center gap-1"
     >
-      <IoEnterOutline className="w-3 h-3" /> {joinedClass ? 'クラス変更' : 'クラスに参加'}
+      <IoEnterOutline className="w-3 h-3" /> {joinedClass ? 'クラス参加' : 'クラスに参加'}
     </button>
     <button onClick={() => signOut(auth)} className="text-slate-300 font-bold text-[10px] hover:text-rose-500 uppercase tracking-widest">ログアウト</button>
   </div>

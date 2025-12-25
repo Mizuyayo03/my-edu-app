@@ -12,7 +12,7 @@ export default function RootPage() {
       {/* ロゴエリア */}
       <div className="text-center mb-12">
         <h1 className="text-4xl font-black italic uppercase tracking-tighter text-slate-800">
-          Academic <span className="text-indigo-600">App</span>
+          Colorverse <span className="text-indigo-600">App</span>
         </h1>
         <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-2">Management System</p>
       </div>
