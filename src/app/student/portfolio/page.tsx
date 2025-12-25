@@ -1,148 +1,172 @@
 'use client';
-import React, { useState, useEffect, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { db, auth } from '@/firebase/firebase';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
-import { IoPlay, IoPause, IoPlayBack, IoPlayForward, IoClose } from 'react-icons/io5';
+import React, { useState, useEffect } from 'react';
+import { db, auth } from '../../../firebase/firebase'; 
+import { collection, query, where, onSnapshot, doc, deleteDoc, getDocs } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
-function PortfolioContent() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const unitName = searchParams.get('unit');
-  const customTitle = searchParams.get('title');
-  
-  const [works, setWorks] = useState<any[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [speed, setSpeed] = useState(1); // 再生速度 (1, 2, 3)
-
-  useEffect(() => {
-    const fetchWorks = async () => {
-      if (auth.currentUser && unitName) {
-        // ※ここで FirebaseError が出ていたので、インデックス作成が必要です
-        const q = query(
-          collection(db, "works"), 
-          where("uid", "==", auth.currentUser.uid),
-          where("taskName", "==", unitName),
-          orderBy("createdAt", "asc")
-        );
-        const snap = await getDocs(q);
-        setWorks(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      }
-    };
-    fetchWorks();
-  }, [unitName]);
-
-  // 自動再生のタイマー処理
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (isPlaying && works.length > 0) {
-      // 1000ms(1秒) を speed で割ることで速度を変化させる
-      timer = setInterval(() => {
-        setCurrentIndex((prev) => (prev + 1) % works.length);
-      }, 1000 / speed);
-    }
-    return () => clearInterval(timer);
-  }, [isPlaying, speed, works.length]);
-
-  if (works.length === 0) return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center font-black text-slate-300 italic animate-pulse uppercase tracking-[0.3em]">
-      Generating Portfolio...
-    </div>
-  );
-
-  const currentWork = works[currentIndex];
-
-  return (
-    <div className="min-h-screen bg-white text-slate-900 p-8 font-sans">
-      {/* 上部：単元名と課題名（図のレイアウト通り） */}
-      <div className="flex gap-4 mb-8">
-        <div className="flex-1 p-6 border-4 border-slate-900 rounded-2xl font-black text-center text-xl bg-slate-50">
-          <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-1">Unit</p>
-          {unitName}
-        </div>
-        <div className="flex-[2] p-6 border-4 border-slate-900 rounded-2xl font-black text-center text-xl bg-slate-50">
-          <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-1">Task</p>
-          {currentWork.taskName || "課題名"}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-        {/* 左側：作品メインエリア */}
-        <div className="lg:col-span-7 flex flex-col gap-4">
-          <div className="w-full p-4 border-4 border-slate-900 rounded-2xl font-black text-center text-2xl bg-indigo-50 italic">
-            {customTitle}
-          </div>
-          <div className="w-full aspect-video border-4 border-slate-900 rounded-[40px] flex items-center justify-center overflow-hidden bg-slate-100 shadow-[12px_12px_0px_0px_rgba(15,23,42,1)]">
-            <img 
-              src={currentWork.images?.[0]} 
-              className="w-full h-full object-contain p-2" 
-              alt="portfolio work"
-            />
-          </div>
-        </div>
-
-        {/* 右側：コントロールとコメント */}
-        <div className="lg:col-span-5 flex flex-col gap-6">
-          {/* 再生コントロールボックス */}
-          <div className="bg-white p-6 border-4 border-slate-900 rounded-[32px] shadow-sm">
-            <div className="flex items-center justify-center gap-6 mb-6">
-              <button onClick={() => setCurrentIndex((prev) => (prev - 1 + works.length) % works.length)} className="text-3xl hover:scale-110 transition-transform"><IoPlayBack /></button>
-              <button onClick={() => setIsPlaying(!isPlaying)} className="w-16 h-16 bg-slate-900 text-white rounded-full flex items-center justify-center text-3xl shadow-lg shadow-indigo-100 active:scale-90 transition-all">
-                {isPlaying ? <IoPause /> : <IoPlay className="ml-1" />}
-              </button>
-              <button onClick={() => setCurrentIndex((prev) => (prev + 1) % works.length)} className="text-3xl hover:scale-110 transition-transform"><IoPlayForward /></button>
-            </div>
-            
-            <div className="flex items-center justify-between border-t-2 border-slate-100 pt-6">
-              <div className="flex gap-2">
-                {[1, 2, 3].map((s) => (
-                  <button 
-                    key={s} 
-                    onClick={() => setSpeed(s)}
-                    className={`px-4 py-2 rounded-xl font-black text-xs transition-all ${speed === s ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
-                  >
-                    x{s}
-                  </button>
-                ))}
-              </div>
-              <span className="font-black text-2xl italic text-slate-400">({currentIndex + 1} / {works.length})</span>
-            </div>
-          </div>
-
-          {/* コメントエリア（丸角ボックスを上下で分割） */}
-          <div className="flex-1 border-4 border-slate-900 rounded-[60px] overflow-hidden flex flex-col bg-slate-50 shadow-[8px_8px_0px_0px_rgba(15,23,42,1)]">
-            <div className="flex-1 p-8 border-b-4 border-slate-900 flex flex-col">
-              <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-2 italic">Student Comment</span>
-              <p className="font-bold text-slate-700 leading-relaxed overflow-y-auto">
-                {currentWork.comment || "振り返りコメントはありません"}
-              </p>
-            </div>
-            <div className="flex-1 p-8 bg-indigo-50/50 flex flex-col">
-              <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-2 italic">Teacher Feedback</span>
-              <p className="font-bold text-indigo-900 leading-relaxed overflow-y-auto">
-                {currentWork.teacherFeedback || "先生からのコメントはまだありません"}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 右下の閉じるボタン */}
-      <button 
-        onClick={() => router.back()}
-        className="fixed bottom-10 right-10 w-16 h-16 bg-red-500 text-white rounded-full flex items-center justify-center shadow-xl hover:bg-red-600 hover:rotate-90 active:scale-95 transition-all z-50 border-4 border-slate-900"
-      >
-        <IoClose size={36} />
-      </button>
-    </div>
-  );
+// 型の定義
+interface Work {
+  id: string;
+  uid: string;
+  taskId: string;
+  taskName?: string;
+  title?: string;
+  images?: string[];
+  comment?: string;
+  createdAt?: { seconds: number };
 }
 
-export default function PortfolioPlayer() {
+export default function StudentHistory() {
+  const router = useRouter();
+  const [works, setWorks] = useState<Work[]>([]);
+  const [taskLookup, setTaskLookup] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [selectedImg, setSelectedImg] = useState<string | null>(null);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [targetUnit, setTargetUnit] = useState("");
+  const [portfolioTitle, setPortfolioTitle] = useState("");
+
+  useEffect(() => {
+    const fetchTaskInfo = async () => {
+      try {
+        const taskSnap = await getDocs(collection(db, "tasks"));
+        const lookup: Record<string, string> = {};
+        taskSnap.docs.forEach(d => {
+          const data = d.data();
+          lookup[d.id] = data.unitName || data.title || "未分類";
+        });
+        setTaskLookup(lookup);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    fetchTaskInfo();
+
+    const unsubAuth = onAuthStateChanged(auth, (u) => {
+      if (u) {
+        // インデックスエラーを避けるため、シンプルなクエリにしてソートは後で行う
+        const q = query(collection(db, "works"), where("uid", "==", u.uid));
+        const unsubWorks = onSnapshot(q, (snap) => {
+          const data = snap.docs.map(d => ({ id: d.id, ...d.data() } as Work));
+          // メモリ上でソートすることでインデックスエラーを回避
+          data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+          setWorks(data);
+          setLoading(false);
+        }, () => setLoading(false));
+        return () => unsubWorks();
+      }
+    });
+    return () => unsubAuth();
+  }, []);
+
+  // グループ化の計算（型を明示）
+  const groupedWorks: Record<string, Work[]> = works.reduce((acc, work) => {
+    const unitName = taskLookup[work.taskId] || "未分類";
+    if (!acc[unitName]) acc[unitName] = [];
+    acc[unitName].push(work);
+    return acc;
+  }, {} as Record<string, Work[]>);
+
+  const unitList = Object.keys(groupedWorks).filter(u => u !== "未分類");
+
+  const handleCreatePortfolio = () => {
+    if (!targetUnit || !portfolioTitle) {
+      alert("項目を入力してください");
+      return;
+    }
+    router.push(`/student/portfolio?unit=${encodeURIComponent(targetUnit)}&title=${encodeURIComponent(portfolioTitle)}`);
+  };
+
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("削除しますか？")) return;
+    try {
+      await deleteDoc(doc(db, "works", id));
+    } catch (err) {
+      alert("失敗しました");
+    }
+  };
+
+  if (loading) return <div className="min-h-screen bg-slate-50 flex items-center justify-center font-black text-slate-300">LOADING...</div>;
+
   return (
-    <Suspense>
-      <PortfolioContent />
-    </Suspense>
+    <div className="min-h-screen bg-slate-50 p-6 text-slate-900 font-sans">
+      <header className="max-w-md mx-auto mb-10 flex justify-between items-center">
+        <div className="flex flex-col">
+          <span className="text-[10px] font-black text-indigo-500 tracking-[0.3em] uppercase mb-1">My Portfolio</span>
+          <h1 className="text-3xl font-black italic tracking-tighter uppercase">振り返り機能</h1>
+        </div>
+        <Link href="/student" className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-100 font-black text-slate-200">
+          ←
+        </Link>
+      </header>
+
+      <div className="max-w-md mx-auto mb-10">
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="w-full py-5 bg-white text-indigo-600 rounded-[28px] font-black text-lg shadow-xl shadow-indigo-100 border-2 border-indigo-50 active:scale-95 transition-all"
+        >
+          ポートフォリオを作成
+        </button>
+      </div>
+
+      <div className="max-w-md mx-auto space-y-6 pb-20">
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">提出履歴</p>
+        
+        {works.length === 0 ? (
+          <div className="text-center py-40 border-2 border-dashed border-slate-200 rounded-[48px] text-slate-300 font-black">NO DATA</div>
+        ) : (
+          works.map((w) => (
+            <div key={w.id} className="bg-white p-8 rounded-[48px] border border-white shadow-sm relative overflow-hidden">
+              <button onClick={(e) => handleDelete(w.id, e)} className="absolute top-6 right-6 w-10 h-10 bg-red-50 text-red-400 rounded-full font-black text-xs">✕</button>
+
+              <div className="mb-4">
+                <p className="text-[10px] font-black text-indigo-400 italic">
+                  {taskLookup[w.taskId] || "未分類"} : {w.taskName || "無題"}
+                </p>
+                <p className="text-[9px] font-bold text-slate-300 uppercase">
+                  {w.createdAt ? new Date(w.createdAt.seconds * 1000).toLocaleDateString() : "最近"}
+                </p>
+              </div>
+              
+              <div className="flex gap-4 overflow-x-auto pb-4">
+                {w.images?.map((img, i) => (
+                  <img key={i} src={img} onClick={() => setSelectedImg(img)} className="w-44 h-60 object-cover rounded-[32px] border-4 border-slate-50 cursor-zoom-in" alt="work" />
+                ))}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+          <div className="bg-white w-full max-w-sm rounded-[48px] p-10 shadow-2xl border-t-8 border-indigo-600 text-center">
+            <h2 className="text-2xl font-black text-indigo-900 italic mb-8">Portfolio Settings</h2>
+            <div className="space-y-5 text-left">
+              <label className="text-[10px] font-black text-slate-300 uppercase ml-4">単元を選択</label>
+              <select value={targetUnit} onChange={(e) => setTargetUnit(e.target.value)} className="w-full p-5 bg-indigo-50/50 rounded-[24px] font-black text-slate-700 outline-none">
+                <option value="">選択してください</option>
+                {unitList.map(unit => <option key={unit} value={unit}>{unit}</option>)}
+              </select>
+              <label className="text-[10px] font-black text-slate-300 uppercase ml-4">作品名</label>
+              <input type="text" placeholder="作品名を記入" value={portfolioTitle} onChange={(e) => setPortfolioTitle(e.target.value)} className="w-full p-5 bg-indigo-50/50 rounded-[24px] font-black text-slate-700 outline-none" />
+              <button onClick={handleCreatePortfolio} className="w-full py-5 bg-indigo-600 text-white rounded-[24px] font-black text-lg mt-4 active:scale-95 transition-all">作成を開始</button>
+              <button onClick={() => setIsModalOpen(false)} className="w-full text-slate-400 font-black text-[10px] pt-2">キャンセル</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedImg && (
+        <div className="fixed inset-0 bg-slate-900/95 z-50 flex items-center justify-center p-6" onClick={() => setSelectedImg(null)}>
+          <img src={selectedImg} className="max-w-full max-h-[80vh] object-contain rounded-[40px]" alt="zoom" />
+        </div>
+      )}
+    </div>
   );
 }
