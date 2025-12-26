@@ -3,18 +3,28 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from '../../firebase/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { collection, addDoc, query, where, onSnapshot, serverTimestamp } from 'firebase/firestore';
-import { useRouter } from 'next/navigation'; // 追加
+import { 
+  collection, 
+  addDoc, 
+  query, 
+  where, 
+  onSnapshot, 
+  serverTimestamp, 
+  deleteDoc, 
+  doc 
+} from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { IoCopyOutline, IoPeopleOutline } from 'react-icons/io5';
+// IoTrashOutline (ゴミ箱アイコン) を追加
+import { IoCopyOutline, IoPeopleOutline, IoTrashOutline } from 'react-icons/io5';
 
 export default function TeacherStartPage() {
   const [user, setUser] = useState<any>(null);
   const [classes, setClasses] = useState<any[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newClassName, setNewClassName] = useState('');
-  const [loading, setLoading] = useState(true); // 読み込み状態を管理
-  const router = useRouter(); // 追加
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -27,7 +37,6 @@ export default function TeacherStartPage() {
         });
         return () => unsubSnapshot();
       } else {
-        // 🚨 ログインしていない場合、ログイン画面にリダイレクト
         setUser(null);
         setLoading(false);
         router.push('/teacher/login'); 
@@ -36,6 +45,7 @@ export default function TeacherStartPage() {
     return () => unsub();
   }, [router]);
 
+  // --- クラス作成機能 ---
   const handleCreateClass = async () => {
     if (!newClassName || !user) return;
     const generatedCode = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -53,22 +63,24 @@ export default function TeacherStartPage() {
     }
   };
 
-  // ログインチェック中、または未ログイン時は表示を制限
+  // --- クラス削除機能 ---
+  const handleDeleteClass = async (classId: string, className: string) => {
+    if (!window.confirm(`「${className}」を削除してもよろしいですか？\nこの操作は取り消せません。`)) return;
+    
+    try {
+      await deleteDoc(doc(db, "classes", classId));
+      // onSnapshotによって自動的に画面が更新されます
+    } catch (err) {
+      alert("削除に失敗しました");
+    }
+  };
+
   if (loading || !user) {
     return (
       <div className="min-h-screen bg-[#f1f5f9] flex flex-col items-center justify-center p-6">
         <div className="text-center font-bold text-slate-400 font-black italic uppercase tracking-widest animate-pulse">
           Loading...
         </div>
-        {/* 自動遷移しない場合の予備ボタン */}
-        {!loading && !user && (
-          <button 
-            onClick={() => router.push('/teacher/login')}
-            className="mt-4 text-[10px] font-black text-indigo-600 uppercase border-b border-indigo-600"
-          >
-            Go to Login
-          </button>
-        )}
       </div>
     );
   }
@@ -89,8 +101,9 @@ export default function TeacherStartPage() {
         </div>
       </nav>
 
-      {/* メイン：元の3大機能パネルを完全に維持 */}
+      {/* メインエリア */}
       <main className="flex-1 flex flex-col items-center justify-start p-6 gap-6 max-w-md mx-auto w-full pt-10">
+        
         {/* 1. 提出確認機能 (CHECK) */}
         <Link href="/teacher/check" className="w-full group bg-slate-900 p-10 rounded-[40px] shadow-xl hover:shadow-2xl hover:bg-indigo-700 transition-all flex flex-col items-center justify-center text-center text-white">
           <span className="text-5xl mb-4 group-hover:scale-110 transition-transform">📁</span>
@@ -112,17 +125,25 @@ export default function TeacherStartPage() {
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-2">SUMMARY</p>
         </Link>
 
-        {/* クラスコード表示エリア */}
+        {/* クラス管理エリア：クラス名を強調し、削除ボタンを追加 */}
         {classes.length > 0 && (
           <div className="w-full mt-10 p-6 bg-white rounded-[32px] shadow-sm border border-slate-100">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 text-center">作成したクラスとコード</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 text-center">管理中のクラス一覧</p>
             <div className="space-y-4">
               {classes.map((cls) => (
-                <div key={cls.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-transparent hover:border-indigo-100 transition-all">
+                <div key={cls.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-transparent hover:border-indigo-100 transition-all group/item">
                   <div className="flex flex-col">
-                    <p className="text-[10px] font-bold text-indigo-600 uppercase mb-0.5">{cls.className}</p>
-                    <p className="text-lg font-black tracking-widest text-slate-800">{cls.classCode}</p>
+                    {/* クラス名を大きく表示 */}
+                    <p className="text-lg font-black tracking-tight text-slate-800">{cls.className}</p>
+                    {/* クラスコードが必要な時のために、コピーボタンだけ残す or 完全に消す */}
+                    <button 
+                      onClick={() => { navigator.clipboard.writeText(cls.classCode); alert("クラスコードをコピーしました！"); }}
+                      className="text-left text-[9px] font-bold text-slate-300 hover:text-indigo-400 uppercase tracking-widest transition-colors"
+                    >
+                      Copy Class Code
+                    </button>
                   </div>
+                  
                   <div className="flex items-center gap-2">
                     <Link
                       href={`/teacher/class/${cls.id}?name=${encodeURIComponent(cls.className)}`}
@@ -130,11 +151,14 @@ export default function TeacherStartPage() {
                     >
                       <IoPeopleOutline className="text-base" /> Students
                     </Link>
+
+                    {/* クラス削除ボタン */}
                     <button
-                      onClick={() => { navigator.clipboard.writeText(cls.classCode); alert("コピーしました！"); }}
-                      className="p-2 text-slate-300 hover:text-indigo-600 transition-colors"
+                      onClick={() => handleDeleteClass(cls.id, cls.className)}
+                      className="p-2.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                      title="このクラスを削除"
                     >
-                      <IoCopyOutline className="text-lg" />
+                      <IoTrashOutline className="text-lg" />
                     </button>
                   </div>
                 </div>
@@ -144,7 +168,7 @@ export default function TeacherStartPage() {
         )}
       </main>
 
-      {/* ポップアップ画面 (Create Class Modal) */}
+      {/* クラス作成モーダル */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 z-50">
           <div className="bg-white p-8 rounded-[40px] w-full max-w-sm shadow-2xl">

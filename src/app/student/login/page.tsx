@@ -3,7 +3,7 @@
 import React from 'react';
 import { auth, db } from '../../../firebase/firebase';
 import { GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore'; // getDocsを使う
 import { useRouter } from 'next/navigation';
 import { FcGoogle } from 'react-icons/fc';
 
@@ -14,7 +14,7 @@ export default function StudentLoginPage() {
     const provider = new GoogleAuthProvider();
     
     try {
-      // 1. Googleログイン画面をポップアップで表示
+      // 1. Googleログイン画面を表示
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
@@ -22,26 +22,25 @@ export default function StudentLoginPage() {
         throw new Error("メールアドレスが取得できませんでした。");
       }
 
-      // 2. Firestoreの「users」コレクションに先生が登録したデータがあるか確認
-      const userRef = doc(db, "users", user.email);
-      const userSnap = await getDoc(userRef);
+      // 2. 🚀 重要：IDで探すのではなく、emailフィールドが一致するドキュメントを検索
+      // これにより、複数クラスに登録されていてもログインできるようになります
+      const q = query(collection(db, "users"), where("email", "==", user.email));
+      const querySnapshot = await getDocs(q);
 
-      if (userSnap.exists()) {
-        // ✅ 許可リストに存在する場合
-        console.log("ログイン成功:", userSnap.data());
+      if (!querySnapshot.empty) {
+        // ✅ 登録リスト（usersコレクション）に1件でも一致があれば成功
+        console.log("ログイン成功、所属クラス数:", querySnapshot.size);
         router.push('/student');
       } else {
-        // ❌ 許可リストに存在しない場合
-        await signOut(auth); // Authだけログイン状態になるのを防ぐ
-        alert("あなたのメールアドレスは先生の許可リストに登録されていません。\n正しいアカウントか確認してください。");
+        // ❌ どこにも登録されていない場合
+        await signOut(auth);
+        alert("先生の登録リストにあなたのメールアドレスが見つかりません。");
       }
     } catch (err: any) {
       console.error("Login Error:", err);
       if (err.code === 'auth/network-request-failed') {
-        alert("ネットワークエラーが発生しました。Wi-Fi環境を確認してください。");
-      } else if (err.code === 'auth/popup-closed-by-user') {
-        // ユーザーがポップアップを閉じた場合はアラートを出さない
-      } else {
+        alert("ネットワークエラーが発生しました。");
+      } else if (err.code !== 'auth/popup-closed-by-user') {
         alert("ログインに失敗しました。もう一度試してください。");
       }
     }
@@ -68,12 +67,6 @@ export default function StudentLoginPage() {
             学校から配布された<br/>
             Googleアカウントを使用してください。<br/>
             先生が登録したアドレスのみログイン可能です。
-          </p>
-        </div>
-
-        <div className="mt-8 text-center pt-4 opacity-30 pointer-events-none">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-            アプリのセキュリティ
           </p>
         </div>
       </div>
