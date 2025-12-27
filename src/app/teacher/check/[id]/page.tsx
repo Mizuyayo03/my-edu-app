@@ -62,15 +62,7 @@ export default function TaskDetail() {
           </div>
         </div>
 
-        {/* 🚀 ここが「共有」と「総覧」へのリンクです */}
-        <div className="flex gap-4">
-          <Link href={`/teacher/check/${taskId}/overview`} className="bg-white border-2 border-slate-100 px-6 py-4 rounded-3xl font-black text-xs uppercase tracking-widest hover:bg-slate-50 transition-all">
-            Gallery (総覧)
-          </Link>
-          <Link href={`/teacher/check/${taskId}/share`} className="bg-indigo-600 text-white px-8 py-4 rounded-3xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">
-            Share (共有)
-          </Link>
-        </div>
+      
       </header>
 
       {/* 作品表示グリッド */}

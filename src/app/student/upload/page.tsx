@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { db, auth } from '../../../firebase/firebase'; 
 import { collection, addDoc, serverTimestamp, onSnapshot, query, where } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation'; // useSearchParamsを追加
 import Link from 'next/link';
 
 export default function UploadPage() {
@@ -23,6 +23,8 @@ export default function UploadPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const classId = searchParams.get('classId'); // 🚀 URLからclassIdを取得
 
   // ログイン監視 & 提出済みID取得
   useEffect(() => {
@@ -43,12 +45,22 @@ export default function UploadPage() {
     return () => unsub();
   }, []);
 
-  // 課題箱の取得
+  // 🚀 課題箱の取得（自分のクラスのものだけに絞り込む）
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, "tasks"), (snap) => {
+    if (!classId) return; // クラスIDがない場合は何もしない
+
+    // 🚀 クエリに where("classId", "==", classId) を追加
+    const q = query(
+      collection(db, "tasks"), 
+      where("classId", "==", classId)
+    );
+
+    const unsub = onSnapshot(q, (snap) => {
       const now = new Date().getTime();
       const allTasks = snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+      
       const filtered = allTasks.filter(task => {
+        // 提出済みは除外
         if (submittedTaskIds.includes(task.id)) return false;
         if (!task.deadline) return true;
         try {
@@ -56,17 +68,19 @@ export default function UploadPage() {
           return deadlineTime > now;
         } catch (e) { return true; }
       });
+
       filtered.sort((a, b) => (a.deadline?.seconds || 0) - (b.deadline?.seconds || 0));
       setTasks(filtered);
+
       if (filtered.length > 0 && !filtered.find(t => t.id === selectedTaskId)) {
         setSelectedTaskId(filtered[0].id);
         setTaskName(filtered[0].title);
       }
     });
     return () => unsub();
-  }, [submittedTaskIds]);
+  }, [submittedTaskIds, classId]); // classIdを依存配列に追加
 
-  // カメラ制御
+  // カメラ制御（変更なし）
   useEffect(() => {
     const startCamera = async () => {
       try {
@@ -99,13 +113,23 @@ export default function UploadPage() {
       localStorage.setItem('art_student_name', studentName);
       localStorage.setItem('art_student_number', studentNumber);
       await addDoc(collection(db, "works"), {
-        uid: user.uid, studentName, studentNumber, images, taskId: selectedTaskId, taskName, comment, brightness, createdAt: serverTimestamp(),
+        uid: user.uid, 
+        studentName, 
+        studentNumber, 
+        images, 
+        taskId: selectedTaskId, 
+        taskName, 
+        classId, // 🚀 どのクラス宛の提出かも保存
+        comment, 
+        brightness, 
+        createdAt: serverTimestamp(),
       });
       alert("提出完了しました！");
       router.push('/student');
     } catch (err) { alert("送信エラー"); } finally { setLoading(false); }
   };
 
+  // 表示部分（JSX）は変更なしのため省略可能ですが、そのまま使えるよう保持
   if (step === 'shoot') {
     return (
       <div className="min-h-screen bg-black text-white flex flex-col font-sans">
