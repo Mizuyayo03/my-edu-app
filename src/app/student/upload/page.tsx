@@ -1,9 +1,9 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
-import { db, auth } from '../../../firebase/firebase'; 
+import { db, auth } from '../../../firebase/firebase';
 import { collection, addDoc, serverTimestamp, onSnapshot, query, where } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
-import { useRouter, useSearchParams } from 'next/navigation'; // useSearchParamsを追加
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 export default function UploadPage() {
@@ -24,9 +24,8 @@ export default function UploadPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const classId = searchParams.get('classId'); // 🚀 URLからclassIdを取得
+  const classId = searchParams.get('classId');
 
-  // ログイン監視 & 提出済みID取得
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => { 
       if (u) {
@@ -45,22 +44,13 @@ export default function UploadPage() {
     return () => unsub();
   }, []);
 
-  // 🚀 課題箱の取得（自分のクラスのものだけに絞り込む）
   useEffect(() => {
-    if (!classId) return; // クラスIDがない場合は何もしない
-
-    // 🚀 クエリに where("classId", "==", classId) を追加
-    const q = query(
-      collection(db, "tasks"), 
-      where("classId", "==", classId)
-    );
-
+    if (!classId) return;
+    const q = query(collection(db, "tasks"), where("classId", "==", classId));
     const unsub = onSnapshot(q, (snap) => {
       const now = new Date().getTime();
       const allTasks = snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
-      
       const filtered = allTasks.filter(task => {
-        // 提出済みは除外
         if (submittedTaskIds.includes(task.id)) return false;
         if (!task.deadline) return true;
         try {
@@ -68,19 +58,16 @@ export default function UploadPage() {
           return deadlineTime > now;
         } catch (e) { return true; }
       });
-
       filtered.sort((a, b) => (a.deadline?.seconds || 0) - (b.deadline?.seconds || 0));
       setTasks(filtered);
-
-      if (filtered.length > 0 && !filtered.find(t => t.id === selectedTaskId)) {
+      if (filtered.length > 0 && !selectedTaskId) {
         setSelectedTaskId(filtered[0].id);
         setTaskName(filtered[0].title);
       }
     });
     return () => unsub();
-  }, [submittedTaskIds, classId]); // classIdを依存配列に追加
+  }, [submittedTaskIds, classId]);
 
-  // カメラ制御（変更なし）
   useEffect(() => {
     const startCamera = async () => {
       try {
@@ -91,7 +78,8 @@ export default function UploadPage() {
     const stopCamera = () => {
       if (videoRef.current?.srcObject) (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
     };
-    if (step === 'shoot') startCamera(); else stopCamera();
+    if (step === 'shoot') startCamera();
+    else stopCamera();
     return () => stopCamera();
   }, [step]);
 
@@ -99,7 +87,8 @@ export default function UploadPage() {
     const v = videoRef.current;
     const c = canvasRef.current;
     if (v && c) {
-      c.width = v.videoWidth; c.height = v.videoHeight;
+      c.width = v.videoWidth;
+      c.height = v.videoHeight;
       c.getContext('2d')?.drawImage(v, 0, 0);
       setImages(prev => [...prev, c.toDataURL('image/jpeg')]);
     }
@@ -107,7 +96,7 @@ export default function UploadPage() {
 
   const handleSubmit = async () => {
     if (!studentName || !studentNumber) return alert("名前と出席番号を入力してください");
-    if (!selectedTaskId || images.length === 0) return alert("提出先の課題箱がありません");
+    if (!selectedTaskId || images.length === 0) return alert("提出先の課題箱を選択してください");
     setLoading(true);
     try {
       localStorage.setItem('art_student_name', studentName);
@@ -116,20 +105,20 @@ export default function UploadPage() {
         uid: user.uid, 
         studentName, 
         studentNumber, 
-        images, 
-        taskId: selectedTaskId, 
+        images, // 複数枚対応
+        taskId: selectedTaskId,
         taskName, 
-        classId, // 🚀 どのクラス宛の提出かも保存
+        classId,
         comment, 
-        brightness, 
+        brightness: brightness / 100, // 先生側で計算しやすいように1.0基準にする
         createdAt: serverTimestamp(),
+        status: 'pending'
       });
       alert("提出完了しました！");
       router.push('/student');
     } catch (err) { alert("送信エラー"); } finally { setLoading(false); }
   };
 
-  // 表示部分（JSX）は変更なしのため省略可能ですが、そのまま使えるよう保持
   if (step === 'shoot') {
     return (
       <div className="min-h-screen bg-black text-white flex flex-col font-sans">
@@ -160,7 +149,7 @@ export default function UploadPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-6 text-slate-900 font-sans selection:bg-indigo-100">
+    <div className="min-h-screen bg-[#F8FAFC] p-6 text-slate-900 font-sans">
       <header className="max-w-md mx-auto mb-8 flex justify-between items-center">
         <button onClick={() => setStep('shoot')} className="text-xs font-black text-slate-400 underline decoration-slate-200 underline-offset-4 uppercase tracking-tighter">← 撮り直す</button>
         <h1 className="text-2xl font-black italic tracking-tighter text-slate-800">PREVIEW</h1>
@@ -196,17 +185,10 @@ export default function UploadPage() {
           <label className="text-[10px] font-black text-slate-400 uppercase ml-4 tracking-[0.2em] italic">提出先の課題箱を選んでね</label>
           <div className="grid gap-3">
             {tasks.length > 0 ? tasks.map((t) => (
-              <button 
-                key={t.id} 
-                onClick={() => { setSelectedTaskId(t.id); setTaskName(t.title); }} 
-                className={`p-6 rounded-[32px] text-left font-black transition-all border-4 ${selectedTaskId === t.id ? 'border-indigo-600 bg-indigo-50 text-indigo-900 shadow-xl -translate-y-1' : 'border-white bg-white shadow-sm text-slate-400 opacity-60'}`}
-              >
+              <button key={t.id} onClick={() => { setSelectedTaskId(t.id); setTaskName(t.title); }} 
+                className={`p-6 rounded-[32px] text-left font-black transition-all border-4 ${selectedTaskId === t.id ? 'border-indigo-600 bg-indigo-50 text-indigo-900 shadow-xl -translate-y-1' : 'border-white bg-white shadow-sm text-slate-400 opacity-60'}`}>
                 <div className="flex flex-col gap-1">
-                  {t.unitName && (
-                    <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">
-                      {t.unitName}
-                    </span>
-                  )}
+                  {t.unitName && <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">{t.unitName}</span>}
                   <div className="flex justify-between items-center">
                     <span className="text-lg">{t.title}</span>
                     {selectedTaskId === t.id && <span className="w-3 h-3 bg-indigo-600 rounded-full animate-pulse" />}
