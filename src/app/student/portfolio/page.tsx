@@ -2,8 +2,9 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { db, auth } from '@/firebase/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { IoPlay, IoPause, IoPlayBack, IoPlayForward, IoClose, IoChatbubbleEllipsesOutline, IoBulbOutline } from 'react-icons/io5';
+import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+import { IoPlay, IoPause, IoPlayBack, IoPlayForward, IoClose, IoChatbubbleEllipsesOutline, IoBulbOutline, IoCloudUploadOutline, IoCheckmarkCircle } from 'react-icons/io5';
 
 function PortfolioContent() {
   const searchParams = useSearchParams();
@@ -15,11 +16,27 @@ function PortfolioContent() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [speed, setSpeed] = useState(1);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [studentInfo, setStudentInfo] = useState<any>(null);
 
+  // 1. 生徒自身の情報（特に classId）をあらかじめ取得しておく
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (user?.email) {
+        const q = query(collection(db, "users"), where("email", "==", user.email.toLowerCase()));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          setStudentInfo(snap.docs[0].data());
+        }
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  // 2. 作品データの取得
   useEffect(() => {
     const fetchWorks = async () => {
       if (auth.currentUser && unitName) {
-        // 1. 全課題を取得して、選択された単元に属するtaskIdを特定
         const tasksSnap = await getDocs(collection(db, "tasks"));
         const targetTaskIds = tasksSnap.docs
           .filter(d => (d.data().unitName || d.data().title) === unitName)
@@ -27,7 +44,6 @@ function PortfolioContent() {
 
         if (targetTaskIds.length === 0) return;
 
-        // 2. 自分の提出物を取得
         const q = query(
           collection(db, "works"), 
           where("uid", "==", auth.currentUser.uid),
@@ -36,7 +52,6 @@ function PortfolioContent() {
         
         const snap = await getDocs(q);
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        // 作成日時順に並び替え
         data.sort((a: any, b: any) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
         setWorks(data);
       }
@@ -44,15 +59,51 @@ function PortfolioContent() {
     fetchWorks();
   }, [unitName]);
 
+  // スライドショーのタイマー
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isPlaying && works.length > 0) {
       timer = setInterval(() => {
         setCurrentIndex((prev) => (prev + 1) % works.length);
-      }, 2000 / speed); // 少しゆっくりめに調整（2秒/スピード）
+      }, 2000 / speed);
     }
     return () => clearInterval(timer);
   }, [isPlaying, speed, works.length]);
+
+  // 💡 ギャラリーに公開する関数（classId を確実に書き込むように強化）
+  const handlePublish = async () => {
+    const currentWork = works[currentIndex];
+    if (!currentWork || isPublishing || !studentInfo) return;
+    
+    const ok = confirm("この作品をクラスギャラリーに公開しますか？\n（同じクラスの友達に見えるようになります）");
+    if (!ok) return;
+
+    setIsPublishing(true);
+    try {
+      const workRef = doc(db, "works", currentWork.id);
+      
+      // 💡 修正ポイント：isPublished だけでなく classId も確実に上書きする
+      await updateDoc(workRef, {
+        isPublished: true,
+        publishedAt: serverTimestamp(),
+        classId: studentInfo.classId, // 生徒情報から取得した classId を注入
+        studentName: studentInfo.studentName, // 名前も最新に更新
+        studentNumber: studentInfo.studentNumber // 出席番号も最新に更新
+      });
+      
+      // ローカルの状態も更新
+      const newWorks = [...works];
+      newWorks[currentIndex].isPublished = true;
+      setWorks(newWorks);
+      
+      alert("ギャラリーに公開しました！");
+    } catch (e: any) {
+      console.error(e);
+      alert("公開に失敗しました: " + e.message);
+    } finally {
+      setIsPublishing(false);
+    }
+  };
 
   if (works.length === 0) return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center font-black text-slate-300 animate-pulse tracking-widest uppercase">
@@ -70,9 +121,14 @@ function PortfolioContent() {
           <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1 italic">Unit</p>
           <p className="font-black text-lg truncate text-slate-800">{unitName}</p>
         </div>
-        <div className="flex-[2] bg-white p-6 rounded-[32px] shadow-sm border border-slate-100">
+        <div className="flex-[2] bg-white p-6 rounded-[32px] shadow-sm border border-slate-100 relative">
           <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1 italic">Current Task</p>
           <p className="font-black text-lg truncate text-slate-800">{currentWork.taskName || "課題"}</p>
+          {currentWork.isPublished && (
+            <div className="absolute top-4 right-4 flex items-center gap-1 bg-emerald-500 text-white px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-tighter shadow-lg shadow-emerald-200">
+              <IoCheckmarkCircle size={12} /> Published
+            </div>
+          )}
         </div>
       </div>
 
@@ -88,7 +144,7 @@ function PortfolioContent() {
             <img 
               src={currentWork.images?.[0] || currentWork.image} 
               className="w-full h-full object-cover transition-all duration-700" 
-              style={{ filter: `brightness(${currentWork.brightness || 1})` }} // 明るさを反映
+              style={{ filter: `brightness(${currentWork.brightness || 1})` }}
               alt="work"
             />
           </div>
@@ -96,7 +152,6 @@ function PortfolioContent() {
 
         {/* 右側：コントロール & メッセージ */}
         <div className="lg:col-span-5 flex flex-col gap-6">
-          {/* 再生コントロール */}
           <div className="bg-slate-900 p-8 rounded-[40px] shadow-2xl text-white">
             <div className="flex items-center justify-center gap-8 mb-8">
               <button onClick={() => { setIsPlaying(false); setCurrentIndex((prev) => (prev - 1 + works.length) % works.length); }} className="text-3xl text-slate-500 hover:text-white transition-colors"><IoPlayBack /></button>
@@ -122,11 +177,21 @@ function PortfolioContent() {
                 {currentIndex + 1} / {works.length}
               </span>
             </div>
+
+            <button 
+              onClick={handlePublish}
+              disabled={currentWork.isPublished || isPublishing}
+              className={`w-full mt-6 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${currentWork.isPublished ? 'bg-emerald-500/20 text-emerald-500 cursor-default' : 'bg-white text-slate-900 hover:bg-indigo-400 hover:text-white active:scale-95 shadow-xl'}`}
+            >
+              {currentWork.isPublished ? (
+                <>已にギャラリー公開中</>
+              ) : (
+                <>{isPublishing ? "Publishing..." : <><IoCloudUploadOutline size={18} /> Publish to Gallery</>}</>
+              )}
+            </button>
           </div>
 
-          {/* コメント・フィードバックエリア */}
           <div className="bg-white rounded-[48px] shadow-sm border border-slate-100 overflow-hidden flex flex-col shadow-xl shadow-slate-200/50">
-            {/* 自分のコメント */}
             <div className="p-8 border-b border-slate-50">
               <div className="flex items-center gap-2 mb-3">
                 <IoChatbubbleEllipsesOutline className="text-slate-300" size={18} />
@@ -137,7 +202,6 @@ function PortfolioContent() {
               </p>
             </div>
 
-            {/* 先生からのフィードバック 💡ここを修正 */}
             <div className={`p-8 transition-colors duration-500 ${currentWork.feedback ? 'bg-indigo-50/50' : 'bg-slate-50/30'}`}>
               <div className="flex items-center gap-2 mb-3">
                 <IoBulbOutline className={currentWork.feedback ? "text-indigo-500" : "text-slate-300"} size={18} />
@@ -153,7 +217,6 @@ function PortfolioContent() {
         </div>
       </div>
 
-      {/* 閉じるボタン */}
       <button 
         onClick={() => router.back()}
         className="fixed bottom-10 right-10 w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-2xl border border-slate-100 font-black text-slate-300 hover:text-indigo-600 hover:scale-110 active:scale-95 transition-all text-3xl z-50"
