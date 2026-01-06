@@ -66,7 +66,7 @@ export default function GalleryPage() {
           <Link href="/student" className="text-indigo-600 font-bold flex items-center mb-2 text-sm">
             <IoArrowBack className="mr-1" /> もどる
           </Link>
-          <h1 className="text-4xl font-black text-slate-900 italic tracking-tighter">STUDENT GALLERY</h1>
+          <h1 className="text-4xl font-black text-slate-900 italic tracking-tighter">生徒ギャラリー</h1>
         </div>
       </header>
 
