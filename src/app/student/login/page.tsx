@@ -2,52 +2,39 @@
 
 import React, { useState } from 'react';
 import { auth, db } from '../../../firebase/firebase';
-import { GoogleAuthProvider, signInWithPopup, signOut, signInAnonymously } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, signOut, signInWithEmailAndPassword } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { FcGoogle } from 'react-icons/fc';
-import { IoMailOutline } from 'react-icons/io5';
+import { IoMailOutline, IoLockClosedOutline } from 'react-icons/io5';
 
 export default function StudentLoginPage() {
   const router = useRouter();
   
-  // テスト用ログインの状態管理
-  const [email, setEmail] = useState('');
-  const [isTestLoading, setIsTestLoading] = useState(false);
+  // 入力フォームの状態管理
+  const [emailInput, setEmailInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   /**
-   * 💡 重要：ユーザーがFirestoreの登録リスト（users）に存在するか、
-   * かつ「生徒(role: student)」であるかを厳格にチェックする関数
+   * 💡 Firestoreの'users'コレクションに登録があるかチェック
    */
   const checkUserRegistration = async (userEmail: string) => {
-    const q = query(collection(db, "users"), where("email", "==", userEmail.toLowerCase()));
+    const cleanEmail = userEmail.toLowerCase().trim();
+    const q = query(collection(db, "users"), where("email", "==", cleanEmail));
     const querySnapshot = await getDocs(q);
 
     if (!querySnapshot.empty) {
-      const userData = querySnapshot.docs[0].data();
-      
-      // セキュリティ：roleがstudentの場合のみログインを許可
-      if (userData.role === "student") {
-        console.log("生徒としてログイン成功。所属クラスID:", userData.classId);
-        
-        // ログイン情報を保持（他のページでDBを引く際に使用）
-        sessionStorage.setItem('active_student_email', userEmail.toLowerCase());
-        
-        // ダッシュボードへ遷移
-        router.push('/student');
-      } else {
-        // 先生アカウントなどの場合は生徒画面には入れない
-        await signOut(auth);
-        alert("このログイン方法は生徒専用です。先生は先生用画面からログインしてください。");
-      }
+      console.log("Firestore登録確認成功:", cleanEmail);
+      router.push('/student');
     } else {
-      // どこにも登録がない場合
+      // Authには存在するがFirestoreに名簿がない場合
       await signOut(auth);
-      alert("登録リストにこのメールアドレスが見つかりません。\n先生の画面でCSVインポートが完了しているか確認してください。");
+      alert(`Firestoreの名簿（users）に登録がありません:\n${cleanEmail}\n\n名簿ドキュメントを作成してください。`);
     }
   };
 
-  // --- 1. Googleログイン（本番用イメージ） ---
+  // --- 1. Googleログイン（本番用） ---
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
     try {
@@ -58,84 +45,99 @@ export default function StudentLoginPage() {
     } catch (err: any) {
       console.error("Login Error:", err);
       if (err.code !== 'auth/popup-closed-by-user') {
-        alert("ログインに失敗しました。");
+        alert("Googleログインに失敗しました。");
       }
     }
   };
 
-  // --- 2. 🚀 テスト用：パスワードなしメールログイン ---
-  const handleEasyLogin = async (e: React.FormEvent) => {
+  // --- 2. メールアドレスとパスワードでログイン ---
+  const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
-    
-    setIsTestLoading(true);
+    if (!emailInput || !passwordInput) return;
+
+    setIsLoading(true);
     try {
-      // 匿名認証（Anonymous）を使用してFirebase Authの認証壁を突破
-      await signInAnonymously(auth);
-      // その後、Firestoreの登録状況をチェック
-      await checkUserRegistration(email);
+      // 🚀 入力されたメアドとパスワードで認証
+      await signInWithEmailAndPassword(auth, emailInput.trim(), passwordInput);
+      
+      // 成功したらFirestore側の名簿チェック
+      await checkUserRegistration(emailInput);
     } catch (err: any) {
-      console.error("Test Login Error:", err);
-      alert("ログインエラーが発生しました。匿名認証が有効か確認してください。");
+      console.error("Login Error:", err);
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
+        alert("メールアドレスまたはパスワードが正しくありません。");
+      } else {
+        alert("ログイン中にエラーが発生しました。");
+      }
     } finally {
-      setIsTestLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-indigo-50 flex items-center justify-center p-6 font-sans">
       <div className="bg-white p-10 rounded-[40px] shadow-xl w-full max-w-md border-t-8 border-indigo-600 text-center">
-        <h1 className="text-2xl font-black mb-2 text-indigo-900 italic uppercase tracking-tighter">生徒用ログイン画面</h1>
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-12">許可されたアカウント専用</p>
+        <h1 className="text-2xl font-black mb-2 text-indigo-900 italic uppercase tracking-tighter">生徒用ログイン</h1>
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-10">Art Education System</p>
         
-        {/* 本番運用を想定したGoogleログインボタン */}
-        <div className="space-y-6">
-          <button 
-            onClick={handleGoogleLogin}
-            className="w-full py-5 bg-white text-slate-700 rounded-[24px] font-black text-lg shadow-xl shadow-indigo-100 border-2 border-slate-50 active:scale-95 transition-all flex items-center justify-center gap-4"
-          >
-            <FcGoogle className="text-3xl" />
-            Googleでログイン
-          </button>
-        </div>
+        {/* Googleログインボタン */}
+        <button 
+          onClick={handleGoogleLogin}
+          className="w-full py-5 bg-white text-slate-700 rounded-[24px] font-black text-lg shadow-xl shadow-indigo-100 border-2 border-slate-50 active:scale-95 transition-all flex items-center justify-center gap-4 mb-8"
+        >
+          <FcGoogle className="text-3xl" />
+          Googleでログイン
+        </button>
 
-        {/* --- 🚀 テストプレイ専用セクション（パスワードなし） --- */}
-        <div className="mt-10 pt-10 border-t-2 border-dashed border-indigo-100 relative">
-          <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white px-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">
-            Test Play Only
-          </span>
-          
-          <p className="text-[10px] font-bold text-indigo-400 mb-4 tracking-tighter">※テスト時はメアド入力だけで入れます</p>
-          
-          <form onSubmit={handleEasyLogin} className="space-y-3">
+        <div className="relative mb-8">
+          <hr className="border-indigo-100" />
+          <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white px-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">or</span>
+        </div>
+        
+        {/* メール・パスワード入力フォーム */}
+        <form onSubmit={handleEmailLogin} className="space-y-4 text-left">
+          <div>
+            <label className="text-[10px] font-black text-indigo-900 uppercase tracking-widest ml-2 mb-1 block">Email</label>
             <div className="relative">
-              <IoMailOutline className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-300" size={18} />
+              <IoMailOutline className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-300" size={20} />
               <input 
                 type="email" 
-                placeholder="登録済みのメールアドレス" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                /* 💡 入力文字をはっきりした黒(text-slate-900)に設定 */
-                className="w-full bg-indigo-50/50 border-none rounded-[18px] py-4 pl-12 pr-4 text-sm font-bold text-slate-900 placeholder-indigo-200 focus:ring-2 focus:ring-indigo-400 outline-none transition-all"
+                placeholder="test01@example.com" 
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                className="w-full bg-indigo-50/50 border-2 border-transparent focus:border-indigo-200 rounded-[18px] py-4 pl-12 pr-4 text-sm font-bold text-slate-900 outline-none transition-all"
                 required
               />
             </div>
-            
-            <button 
-              type="submit"
-              disabled={isTestLoading}
-              className="w-full py-4 bg-indigo-900 text-white rounded-[18px] font-black text-xs uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all shadow-lg disabled:opacity-50"
-            >
-              {isTestLoading ? "確認中..." : "パスワードなしでログイン"}
-            </button>
-          </form>
-        </div>
+          </div>
 
-        <div className="mt-10 p-6 bg-indigo-50/50 rounded-[30px] border border-indigo-100">
-          <p className="text-[11px] font-bold text-indigo-900 leading-relaxed">
-            本番はGoogleアカウントを使用しますが、<br/>
-            テスト時は先生がインポートした<br/>
-            メールアドレスだけでログイン可能です。
+          <div>
+            <label className="text-[10px] font-black text-indigo-900 uppercase tracking-widest ml-2 mb-1 block">Password</label>
+            <div className="relative">
+              <IoLockClosedOutline className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-300" size={20} />
+              <input 
+                type="password" 
+                placeholder="••••••••" 
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                className="w-full bg-indigo-50/50 border-2 border-transparent focus:border-indigo-200 rounded-[18px] py-4 pl-12 pr-4 text-sm font-bold text-slate-900 outline-none transition-all"
+                required
+              />
+            </div>
+          </div>
+          
+          <button 
+            type="submit"
+            disabled={isLoading}
+            className="w-full py-5 mt-4 bg-indigo-900 text-white rounded-[18px] font-black text-xs uppercase tracking-[0.2em] hover:bg-indigo-700 active:scale-95 transition-all shadow-lg disabled:opacity-50"
+          >
+            {isLoading ? "ログイン中..." : "ログイン"}
+          </button>
+        </form>
+
+        <div className="mt-8 p-6 bg-slate-50 rounded-[30px] border border-slate-100">
+          <p className="text-[10px] font-bold text-slate-400 leading-relaxed uppercase">
+            Authentication ＆ Firestore <br/>の両方に登録が必要です
           </p>
         </div>
       </div>

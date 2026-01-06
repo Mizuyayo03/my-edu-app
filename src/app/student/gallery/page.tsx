@@ -1,10 +1,10 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../../../firebase/firebase'; 
-import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, orderBy } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import Link from 'next/link';
-import { IoArrowBack, IoPlay, IoTimeOutline, IoChevronForward } from 'react-icons/io5';
+import { IoArrowBack, IoPlay, IoChevronForward } from 'react-icons/io5';
 
 export default function GalleryPage() {
   const [portfolios, setPortfolios] = useState<any[]>([]);
@@ -15,34 +15,49 @@ export default function GalleryPage() {
     const unsubAuth = onAuthStateChanged(auth, async (user) => {
       if (user) {
         // 1. ログインユーザーのクラス情報を取得
-        const userQ = query(collection(db, "users"), where("email", "==", user.email?.toLowerCase()));
+        const userQ = query(
+          collection(db, "users"), 
+          where("email", "==", user.email?.toLowerCase())
+        );
         const userSnap = await getDocs(userQ);
-        if (userSnap.empty) { setLoading(false); return; }
+        if (userSnap.empty) { 
+          setLoading(false); 
+          return; 
+        }
 
         const userData = userSnap.docs[0].data();
         setStudentInfo(userData);
         const myClassId = userData.classId;
 
-        // 2. 「同じクラス」かつ「公開済み」の作品をリアルタイム取得
+        // 2. 「同じクラス」かつ「公開済み(isPublished: true)」の作品をリアルタイム取得
+        // ※ Firestoreのコンソールで classId と isPublished の複合インデックス作成が必要な場合があります
         const q = query(
           collection(db, "works"),
           where("classId", "==", myClassId),
-          where("isPublished", "==", true)
+          where("isPublished", "==", true),
+          orderBy("createdAt", "asc") // 最初から時間順に並べて取得
         );
 
         const unsubWorks = onSnapshot(q, (snap) => {
           const allWorks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
           
-          // 3. 振り返り形式にするために「生徒×単元」でグループ化
+          /**
+           * 【修正のポイント：グループ化ロジック】
+           * key を `${work.uid}_${work.taskId}` から `work.uid` のみに変更。
+           * これにより、同じ生徒の作品は課題が異なっても１つのカードにまとまります。
+           */
           const grouped: { [key: string]: any } = {};
+          
           allWorks.forEach((work: any) => {
-            const key = `${work.uid}_${work.taskId}`;
+            const key = work.uid; // 生徒IDのみをキーにする
+            
             if (!grouped[key]) {
               grouped[key] = {
                 uid: work.uid,
                 studentName: work.studentName,
                 studentNumber: work.studentNumber,
-                taskName: work.taskName || "課題作品",
+                // 表示用の課題名は、とりあえず最初の作品のものを入れる（後で最新に更新可）
+                taskName: work.taskName || "ポートフォリオ",
                 works: []
               };
             }
@@ -50,17 +65,27 @@ export default function GalleryPage() {
           });
 
           const portfolioList = Object.values(grouped).map((p: any) => {
-            // 時系列に並べる
-            p.works.sort((a: any, b: any) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+            // その生徒の全作品の中で、一番最後の（最新の）課題名をカードのタイトルにする
+            if (p.works.length > 0) {
+              const latestWork = p.works[p.works.length - 1];
+              p.taskName = latestWork.taskName || "課題作品";
+            }
             return p;
           });
 
-          // 出席番号順にソート
+          // 最後にギャラリー全体を出席番号順に並べる
           portfolioList.sort((a: any, b: any) => (parseInt(a.studentNumber) || 999) - (parseInt(b.studentNumber) || 999));
+          
           setPortfolios(portfolioList);
           setLoading(false);
+        }, (error) => {
+          console.error("Firestore Error:", error);
+          setLoading(false);
         });
+
         return () => unsubWorks();
+      } else {
+        setLoading(false);
       }
     });
     return () => unsubAuth();
@@ -87,20 +112,25 @@ export default function GalleryPage() {
           </div>
         </div>
         <div className="hidden md:block bg-white px-10 py-4 rounded-full shadow-2xl shadow-indigo-100/50 border border-indigo-50 text-[11px] font-black text-slate-800 uppercase tracking-[0.2em]">
-          <span className="text-indigo-600 mr-2">{portfolios.length}</span> Portfolios Live
+          <span className="text-indigo-600 mr-2">{portfolios.length}</span> Students Live
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-        {portfolios.map((p, idx) => (
-          <PortfolioJourneyCard key={idx} portfolio={p} />
-        ))}
-      </div>
+      {portfolios.length === 0 ? (
+        <div className="text-center py-20 text-slate-400 font-bold">
+          公開されているポートフォリオはまだありません。
+        </div>
+      ) : (
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+          {portfolios.map((p) => (
+            <PortfolioJourneyCard key={p.uid} portfolio={p} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-// 💡 振り返り機能を再現したスライドカード
 function PortfolioJourneyCard({ portfolio }: { portfolio: any }) {
   const [index, setIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -110,7 +140,7 @@ function PortfolioJourneyCard({ portfolio }: { portfolio: any }) {
     if (isPlaying && portfolio.works.length > 1) {
       timer = setInterval(() => {
         setIndex((prev) => (prev + 1) % portfolio.works.length);
-      }, 700); // 振り返り機能に近いスピード
+      }, 1000); // 1秒ごとに次の作品（成長の過程）を表示
     }
     return () => clearInterval(timer);
   }, [isPlaying, portfolio.works.length]);
@@ -123,10 +153,10 @@ function PortfolioJourneyCard({ portfolio }: { portfolio: any }) {
       onMouseEnter={() => setIsPlaying(true)}
       onMouseLeave={() => { setIsPlaying(false); setIndex(0); }}
     >
-      {/* プレイヤースペース */}
       <div className="aspect-[4/3] bg-slate-100 relative overflow-hidden">
+        {/* 画像表示。images配列か単一imageパスかに対応 */}
         <img 
-          src={currentWork.images?.[0] || currentWork.image} 
+          src={(currentWork.images && currentWork.images[0]) || currentWork.image || "/api/placeholder/400/300"} 
           className="w-full h-full object-cover transition-all duration-700"
           style={{ 
             filter: `brightness(${currentWork.brightness || 1})`,
@@ -135,10 +165,8 @@ function PortfolioJourneyCard({ portfolio }: { portfolio: any }) {
           alt="portfolio" 
         />
         
-        {/* オーバーレイ */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         
-        {/* ステータスバッジ */}
         <div className="absolute top-6 left-6 flex flex-col gap-2">
           <span className="bg-slate-900/90 backdrop-blur-md text-white px-4 py-2 rounded-2xl font-black italic text-[10px] shadow-lg">
             No.{portfolio.studentNumber}
@@ -150,15 +178,16 @@ function PortfolioJourneyCard({ portfolio }: { portfolio: any }) {
           )}
         </div>
 
-        {/* 進捗インジケーター */}
         <div className="absolute bottom-6 right-8 text-white font-black text-3xl italic opacity-0 group-hover:opacity-100 transition-all translate-y-4 group-hover:translate-y-0">
           {index + 1}<span className="text-sm text-white/50 not-italic ml-1">/ {portfolio.works.length}</span>
         </div>
       </div>
 
-      {/* テキストエリア */}
       <div className="p-10 pt-8">
-        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] mb-2">{portfolio.taskName}</p>
+        {/* 現在のスライド（作品）の課題名を表示 */}
+        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] mb-2">
+          {currentWork.taskName || portfolio.taskName}
+        </p>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-3xl font-black text-slate-800 tracking-tighter">{portfolio.studentName}</h2>
           <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition-colors">
@@ -170,7 +199,6 @@ function PortfolioJourneyCard({ portfolio }: { portfolio: any }) {
         </p>
       </div>
 
-      {/* プログレスバー（再生中に連動） */}
       <div className="absolute bottom-0 left-0 h-2 bg-indigo-100 w-full overflow-hidden">
         <div 
           className="h-full bg-indigo-500 transition-all duration-300 ease-linear"
